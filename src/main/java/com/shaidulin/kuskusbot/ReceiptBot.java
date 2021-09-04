@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.telegram.abilitybots.api.objects.Flag.MESSAGE;
 import static org.telegram.abilitybots.api.objects.Locality.USER;
 import static org.telegram.abilitybots.api.objects.Privacy.PUBLIC;
 
@@ -34,9 +33,10 @@ public class ReceiptBot extends AbilityBot {
     }
 
     public Ability userSentTextMessage() {
+        //noinspection unchecked
         return Ability.builder()
                 .name(DEFAULT)
-                .flag(MESSAGE)
+                .flag(upd -> upd.getMessage().isUserMessage() && !upd.getMessage().isCommand())
                 .privacy(PUBLIC)
                 .locality(USER)
                 .input(0)
