@@ -1,0 +1,11 @@
+logging:
+  level:
+    com:
+      shaidulin:
+        kuskusbot: DEBUG
+
+spring:
+  redis:
+    host: localhost
+  main:
+    web-application-type: none

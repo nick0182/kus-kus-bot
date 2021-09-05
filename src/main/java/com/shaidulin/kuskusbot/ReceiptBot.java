@@ -1,30 +1,29 @@
 package com.shaidulin.kuskusbot;
 
+import com.shaidulin.kuskusbot.cache.Step;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.ListOperations;
 import org.telegram.abilitybots.api.bot.AbilityBot;
+import org.telegram.abilitybots.api.db.MapDBContext;
 import org.telegram.abilitybots.api.objects.Ability;
 import org.telegram.abilitybots.api.objects.MessageContext;
+import org.telegram.abilitybots.api.toggle.BareboneToggle;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-
+import static org.telegram.abilitybots.api.objects.Flag.TEXT;
 import static org.telegram.abilitybots.api.objects.Locality.USER;
 import static org.telegram.abilitybots.api.objects.Privacy.PUBLIC;
 
+@Slf4j
 public class ReceiptBot extends AbilityBot {
-
-    enum Step {
-        START, FIRST, SECOND, THIRD
-    }
 
     private final int creatorId;
 
-    private final Map<Long, Step> userSteps;
+    private final ListOperations<Long, Step> listOperations;
 
-    protected ReceiptBot(String botToken, String botUsername, int creatorId) {
-        super(botToken, botUsername);
+    protected ReceiptBot(String botToken, String botUsername, int creatorId, ListOperations<Long, Step> listOperations) {
+        super(botToken, botUsername, MapDBContext.offlineInstance(botUsername), new BareboneToggle());
         this.creatorId = creatorId;
-        this.userSteps = new ConcurrentHashMap<>();
+        this.listOperations = listOperations;
     }
 
     @Override
@@ -32,11 +31,54 @@ public class ReceiptBot extends AbilityBot {
         return creatorId;
     }
 
-    public Ability userSentTextMessage() {
+    public Ability newUser() {
         //noinspection unchecked
         return Ability.builder()
+                .name("start")
+                .info("добро пожаловать!")
+                .flag(upd -> Boolean.FALSE.equals(listOperations.getOperations().hasKey(upd.getMessage().getFrom().getId())))
+                .privacy(PUBLIC)
+                .locality(USER)
+                .input(0)
+                .action(this::createNewUser)
+                .build();
+    }
+
+    private void createNewUser(MessageContext context) {
+        long userId = context.user().getId();
+        log.debug("Adding new user {} to cache", userId);
+        listOperations.rightPushAll(userId, Step.values());
+        silent.send("Приветствую тебя " + context.user().getFirstName() + " "
+                + context.user().getLastName() + "! Пожалуйста нажми /search чтобы искать рецепт", userId);
+    }
+
+    public Ability ingredientSearch() {
+        //noinspection unchecked
+        return Ability.builder()
+                .name("search")
+                .info("Ищи рецепты по ингредиентам легко и просто!")
+                .flag(upd -> {
+                    Step currentStep = listOperations.index(upd.getMessage().getFrom().getId(), 0);
+                    return currentStep != null && currentStep.equals(Step.START);
+                })
+                .privacy(PUBLIC)
+                .locality(USER)
+                .input(0)
+                .action(this::startIngredientSearch)
+                .build();
+    }
+
+    private void startIngredientSearch(MessageContext context) {
+        long userId = context.user().getId();
+        log.debug("User {} started ingredient search", userId);
+        listOperations.leftPop(userId);
+        silent.send("Пожалуйста напиши первый ингредиент", userId);
+    }
+
+    public Ability userSentTextMessage() {
+        return Ability.builder()
                 .name(DEFAULT)
-                .flag(upd -> upd.getMessage().isUserMessage() && !upd.getMessage().isCommand())
+                .flag(TEXT)
                 .privacy(PUBLIC)
                 .locality(USER)
                 .input(0)
@@ -45,111 +87,22 @@ public class ReceiptBot extends AbilityBot {
     }
 
     private void reactOnMessage(MessageContext context) {
-        Long chatId = context.chatId();
-        Step step = Optional.ofNullable(userSteps.putIfAbsent(chatId, Step.START)).orElse(Step.START);
-        switch (step) {
-            case START -> silent.send("Пожалуйста напишите первый ингредиент", chatId);
-            case FIRST -> silent.send("Пожалуйста напишите второй ингредиент", chatId);
-            case SECOND -> silent.send("Пожалуйста напишите третий ингредиент", chatId);
-            case THIRD -> silent.send("Получены все ингредиенты", chatId);
+        long userId = context.user().getId();
+        Step currentStep = listOperations.leftPop(userId);
+        if (currentStep != null) {
+            log.debug("New message text: {} from user: {} on step: {}",
+                    context.update().getMessage().getText(), userId, currentStep);
+            switch (currentStep) {
+                case FIRST -> silent.send("Пожалуйста напиши второй ингредиент", userId);
+                case SECOND -> silent.send("Пожалуйста напиши третий ингредиент", userId);
+                case THIRD -> silent.send("Получены все ингредиенты", userId);
+                default -> {
+                    log.warn("User {} is not in the context of ingredient search, ignoring message...", userId);
+                    listOperations.leftPush(userId, currentStep); // rollback
+                }
+            }
+        } else {
+            log.error("User {} should have been populated to cache but hadn't been", userId);
         }
     }
-
-
-//    public Ability showPossibleIngredients() {
-//        return Ability
-//                .builder()
-//                .name("find")
-//                .info("start looking for possible ingredients")
-//                .input(0)
-//                .locality(USER)
-//                .privacy(ADMIN)
-//                .action(ctx -> {
-//                    Long chatId = ctx.chatId();
-//                    cache.put(chatId, Step.START);
-//                    silent.send("Пожалуйста напишите первый ингредиент", chatId);
-//                })
-//                .build();
-//    }
-//
-//    public Reply gotFirstIngredient() {
-//        return Reply.of((bot, upd) -> {
-//            Long chatId = upd.getMessage().getChatId();
-//            cache.put(chatId, Step.FIRST);
-//            silent.send("Пожалуйста напишите второй ингредиент", chatId);
-//        }, upd -> {
-//            Long chatId = upd.getMessage().getChatId();
-//            return upd.getMessage().isUserMessage() && cache.containsKey(chatId) && cache.get(chatId).equals(Step.START);
-//        });
-//    }
-//
-//    public Reply gotSecondIngredient() {
-//        return Reply.of((bot, upd) -> {
-//            Long chatId = upd.getMessage().getChatId();
-//            cache.put(chatId, Step.SECOND);
-//            silent.send("Пожалуйста напишите третий ингредиент", chatId);
-//        }, upd -> {
-//            Long chatId = upd.getMessage().getChatId();
-//            return upd.getMessage().isUserMessage() && cache.containsKey(chatId) && cache.get(chatId).equals(Step.FIRST);
-//        });
-//    }
-//
-//    public Reply gotThirdIngredient() {
-//        return Reply.of((bot, upd) -> {
-//            Long chatId = upd.getMessage().getChatId();
-//            cache.put(chatId, Step.THIRD);
-//            silent.send("Получены все ингредиенты", chatId);
-//        }, upd -> {
-//            Long chatId = upd.getMessage().getChatId();
-//            return upd.getMessage().isUserMessage() && cache.containsKey(chatId) && cache.get(chatId).equals(Step.SECOND);
-//        });
-//    }
-
-//    public ReplyFlow ingredientFlow() {
-//        return ReplyFlow.builder(db, 23432132)
-//                .action((bot, upd) -> silent.send("Пожалуйста напишите первый ингредиент", upd.getMessage().getChatId()))
-//                .onlyIf(update -> update.getMessage().getText().equals("старт!"))
-//                .next(gotFirstIngredient())
-//                .build();
-//    }
-//
-//    private ReplyFlow gotFirstIngredient() {
-//        return ReplyFlow.builder(db, 23432132)
-//                .action((bot, upd) -> silent.send("Пожалуйста напишите второй ингредиент", upd.getMessage().getChatId()))
-//                .onlyIf(update -> update.getMessage().isUserMessage())
-//                .next(gotSecondIngredient())
-//                .build();
-//    }
-//
-//    private ReplyFlow gotSecondIngredient() {
-//        return ReplyFlow.builder(db, 23432132)
-//                .action((bot, upd) -> silent.send("Пожалуйста напишите третий ингредиент", upd.getMessage().getChatId()))
-//                .onlyIf(update -> update.getMessage().isUserMessage())
-//                .next(gotThirdIngredient())
-//                .build();
-//    }
-//
-//    private ReplyFlow gotThirdIngredient() {
-//        return ReplyFlow.builder(db, 23432132)
-//                .action((bot, upd) -> silent.send("Получены все ингредиенты", upd.getMessage().getChatId()))
-//                .onlyIf(update -> update.getMessage().isUserMessage())
-//                .build();
-//    }
-
-//    private ReplyFlow test() {
-//        return ReplyFlow.builder(db)
-//                .action(upd -> silent.send("Command me to go left or right!", upd.getMessage().getChatId()))
-//                .onlyIf(hasMessageWith("/find"))
-//                .next(Reply.of(upd ->
-//                                silent.send("Sir, I have gone left.", upd.getMessage().getChatId()),
-//                        hasMessageWith("left")))
-//                .next(Reply.of(upd ->
-//                                silent.send("Sir, I have gone right.", upd.getMessage().getChatId()),
-//                        hasMessageWith("right")))
-//                .build();
-//    }
-//
-//    private Predicate<Update> hasMessageWith(String msg) {
-//        return upd -> upd.getMessage().getText().equalsIgnoreCase(msg);
-//    }
 }
