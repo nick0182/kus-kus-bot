@@ -1,13 +1,24 @@
 package com.shaidulin.kuskusbot;
 
+import com.shaidulin.kuskusbot.cache.CacheService;
 import com.shaidulin.kuskusbot.cache.Step;
+import com.shaidulin.kuskusbot.dto.IngredientMatch;
+import com.shaidulin.kuskusbot.service.ReceiptService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.ListOperations;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.telegram.abilitybots.api.bot.AbilityBot;
 import org.telegram.abilitybots.api.db.MapDBContext;
 import org.telegram.abilitybots.api.objects.Ability;
 import org.telegram.abilitybots.api.objects.MessageContext;
 import org.telegram.abilitybots.api.toggle.BareboneToggle;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+
+import java.util.Collections;
+import java.util.Objects;
+import java.util.Set;
 
 import static org.telegram.abilitybots.api.objects.Flag.TEXT;
 import static org.telegram.abilitybots.api.objects.Locality.USER;
@@ -18,12 +29,16 @@ public class ReceiptBot extends AbilityBot {
 
     private final int creatorId;
 
-    private final ListOperations<Long, Step> listOperations;
+    private final CacheService cacheService;
 
-    protected ReceiptBot(String botToken, String botUsername, int creatorId, ListOperations<Long, Step> listOperations) {
+    private final ReceiptService receiptService;
+
+    public ReceiptBot(String botToken, String botUsername, int creatorId,
+                      CacheService cacheService, ReceiptService receiptService) {
         super(botToken, botUsername, MapDBContext.offlineInstance(botUsername), new BareboneToggle());
         this.creatorId = creatorId;
-        this.listOperations = listOperations;
+        this.cacheService = cacheService;
+        this.receiptService = receiptService;
     }
 
     @Override
@@ -36,7 +51,7 @@ public class ReceiptBot extends AbilityBot {
         return Ability.builder()
                 .name("start")
                 .info("добро пожаловать!")
-                .flag(upd -> Boolean.FALSE.equals(listOperations.getOperations().hasKey(upd.getMessage().getFrom().getId())))
+                .flag(cacheService::isNewUser)
                 .privacy(PUBLIC)
                 .locality(USER)
                 .input(0)
@@ -47,7 +62,7 @@ public class ReceiptBot extends AbilityBot {
     private void createNewUser(MessageContext context) {
         long userId = context.user().getId();
         log.debug("Adding new user {} to cache", userId);
-        listOperations.rightPushAll(userId, Step.values());
+        cacheService.registerNewUser(userId);
         silent.send("Приветствую тебя " + context.user().getFirstName() + " "
                 + context.user().getLastName() + "! Пожалуйста нажми /search чтобы искать рецепт", userId);
     }
@@ -57,10 +72,7 @@ public class ReceiptBot extends AbilityBot {
         return Ability.builder()
                 .name("search")
                 .info("Ищи рецепты по ингредиентам легко и просто!")
-                .flag(upd -> {
-                    Step currentStep = listOperations.index(upd.getMessage().getFrom().getId(), 0);
-                    return currentStep != null && currentStep.equals(Step.START);
-                })
+                .flag(cacheService::isIngredientSearch)
                 .privacy(PUBLIC)
                 .locality(USER)
                 .input(0)
@@ -71,7 +83,7 @@ public class ReceiptBot extends AbilityBot {
     private void startIngredientSearch(MessageContext context) {
         long userId = context.user().getId();
         log.debug("User {} started ingredient search", userId);
-        listOperations.leftPop(userId);
+        cacheService.toNextStep(userId);
         silent.send("Пожалуйста напиши первый ингредиент", userId);
     }
 
@@ -88,21 +100,78 @@ public class ReceiptBot extends AbilityBot {
 
     private void reactOnMessage(MessageContext context) {
         long userId = context.user().getId();
-        Step currentStep = listOperations.leftPop(userId);
+        Step currentStep = cacheService.toNextStep(userId);
         if (currentStep != null) {
-            log.debug("New message text: {} from user: {} on step: {}",
-                    context.update().getMessage().getText(), userId, currentStep);
+            String ingredientSuggest = context.update().getMessage().getText();
+            log.debug("New message text: {} from user: {} on step: {}", ingredientSuggest, userId, currentStep);
             switch (currentStep) {
-                case FIRST -> silent.send("Пожалуйста напиши второй ингредиент", userId);
+                case FIRST -> receiptService.suggestIngredients(ingredientSuggest)
+                        .filter(ingredientMatch -> reactOnEmptyIngredients(ingredientMatch, ingredientSuggest, userId))
+                        .subscribe(
+                                foundMatch -> {
+                                    cacheService.persistIngredientSuggestions(userId, currentStep, foundMatch.getIngredients());
+                                    sendIngredientButtons(userId, currentStep);
+                                },
+                                error -> {
+                                    log.error("Failed to suggest ingredients", error);
+                                    cacheService.toPreviousStep(userId); // rollback
+                                }
+                        );
                 case SECOND -> silent.send("Пожалуйста напиши третий ингредиент", userId);
                 case THIRD -> silent.send("Получены все ингредиенты", userId);
                 default -> {
                     log.warn("User {} is not in the context of ingredient search, ignoring message...", userId);
-                    listOperations.leftPush(userId, currentStep); // rollback
+                    cacheService.toPreviousStep(userId); // rollback
                 }
             }
         } else {
             log.error("User {} should have been populated to cache but hadn't been", userId);
         }
     }
+
+    private boolean reactOnEmptyIngredients(IngredientMatch match, String ingredientSuggest, long userId) {
+        boolean isEmpty = match.getIngredients().isEmpty();
+        if (isEmpty) {
+            log.warn("No ingredients were suggested for input: {} sent by user: {}",
+                    ingredientSuggest, userId);
+            silent.send("Ничего не нашли \uD83E\uDD14 Попробуй еще раз", userId);
+            cacheService.toPreviousStep(userId); // rollback
+        }
+        return !isEmpty;
+    }
+
+    private void sendIngredientButtons(long userId, Step currentStep) {
+
+        Set<ZSetOperations.TypedTuple<String>> ingredients = cacheService.getNextIngredientSuggestions(userId, currentStep);
+        boolean hasMore = ingredients.size() > 3;
+
+        ReplyKeyboardMarkup ingredientKeyboard = new ReplyKeyboardMarkup();
+        ingredientKeyboard.setOneTimeKeyboard(true);
+        ingredientKeyboard.setResizeKeyboard(true);
+        KeyboardRow keyboardRow = new KeyboardRow();
+
+        ingredients
+                .stream()
+                .limit(3)
+                .forEach(ingredient ->
+                        keyboardRow.add(
+                                new KeyboardButton(String.join(
+                                        " - ",
+                                        ingredient.getValue(),
+                                        Objects.requireNonNull(ingredient.getScore()).toString())))
+                );
+
+        if (hasMore) keyboardRow.add("Ещё");
+
+        ingredientKeyboard.setKeyboard(Collections.singletonList(keyboardRow));
+
+        SendMessage ingredientButtonsMessage = SendMessage
+                .builder()
+                .text("Вот что удалось найти")
+                .chatId(String.valueOf(userId))
+                .replyMarkup(ingredientKeyboard)
+                .build();
+        silent.execute(ingredientButtonsMessage);
+    }
+
 }
