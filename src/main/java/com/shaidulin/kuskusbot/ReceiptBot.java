@@ -12,13 +12,10 @@ import org.telegram.abilitybots.api.objects.Ability;
 import org.telegram.abilitybots.api.objects.MessageContext;
 import org.telegram.abilitybots.api.toggle.BareboneToggle;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
-import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 import static org.telegram.abilitybots.api.objects.Flag.TEXT;
 import static org.telegram.abilitybots.api.objects.Locality.USER;
@@ -145,25 +142,37 @@ public class ReceiptBot extends AbilityBot {
         Set<ZSetOperations.TypedTuple<String>> ingredients = cacheService.getNextIngredientSuggestions(userId, currentStep);
         boolean hasMore = ingredients.size() > 3;
 
-        ReplyKeyboardMarkup ingredientKeyboard = new ReplyKeyboardMarkup();
-        ingredientKeyboard.setOneTimeKeyboard(true);
-        ingredientKeyboard.setResizeKeyboard(true);
-        KeyboardRow keyboardRow = new KeyboardRow();
+        InlineKeyboardMarkup ingredientKeyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> ingredientKeyboardButtons = new ArrayList<>();
 
         ingredients
                 .stream()
                 .limit(3)
                 .forEach(ingredient ->
-                        keyboardRow.add(
-                                new KeyboardButton(String.join(
-                                        " - ",
-                                        ingredient.getValue(),
-                                        Objects.requireNonNull(ingredient.getScore()).toString())))
-                );
+                        ingredientKeyboardButtons.add(
+                                Collections.singletonList(
+                                        new InlineKeyboardButton(
+                                                String.join(
+                                                        " - ",
+                                                        ingredient.getValue(),
+                                                        String.valueOf(Objects.requireNonNull(ingredient.getScore()).intValue())),
+                                                null,
+                                                ingredient.getValue(),
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                null
+                                        ))));
 
-        if (hasMore) keyboardRow.add("Ещё");
+        if (hasMore) {
+            ingredientKeyboardButtons.add(
+                    Collections.singletonList(
+                            new InlineKeyboardButton(
+                                    "Ещё", null, "Еще", null, null, null, null, null)));
+        }
 
-        ingredientKeyboard.setKeyboard(Collections.singletonList(keyboardRow));
+        ingredientKeyboard.setKeyboard(ingredientKeyboardButtons);
 
         SendMessage ingredientButtonsMessage = SendMessage
                 .builder()
