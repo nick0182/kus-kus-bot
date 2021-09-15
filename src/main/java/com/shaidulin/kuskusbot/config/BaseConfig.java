@@ -69,11 +69,11 @@ public class BaseConfig {
     }
 
     /*
-     * a value of suggested ingredient's current index
-     * key pattern {chatId}:{stepName}:ingredients:index
+     * a value of suggested ingredient's current page
+     * key pattern {chatId}:{stepName}:ingredients:page
      */
     @Bean
-    RedisTemplate<String, Integer> ingredientsIndexRedisTemplate(LettuceConnectionFactory redisConnectionFactory) {
+    RedisTemplate<String, Integer> ingredientsPageRedisTemplate(LettuceConnectionFactory redisConnectionFactory) {
         RedisTemplate<String, Integer> redisTemplate = new RedisTemplate<>();
         redisTemplate.setKeySerializer(new StringRedisSerializer());
         redisTemplate.setValueSerializer(new GenericToStringSerializer<>(Integer.class));
@@ -84,8 +84,8 @@ public class BaseConfig {
     @Bean
     CacheService cacheService(RedisTemplate<Long, Step> stepsRedisTemplate,
                               RedisTemplate<String, String> ingredientsRedisTemplate,
-                              RedisTemplate<String, Integer> ingredientsIndexRedisTemplate) {
-        return new CacheServiceImpl(stepsRedisTemplate.opsForList(), ingredientsRedisTemplate.opsForZSet(), ingredientsIndexRedisTemplate.opsForValue());
+                              RedisTemplate<String, Integer> ingredientsPageRedisTemplate) {
+        return new CacheServiceImpl(stepsRedisTemplate.opsForList(), ingredientsRedisTemplate.opsForZSet(), ingredientsPageRedisTemplate.opsForValue());
     }
 
     @Bean

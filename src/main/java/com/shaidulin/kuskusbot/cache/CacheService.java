@@ -14,6 +14,8 @@ public interface CacheService {
 
     boolean isIngredientSearch(Update update);
 
+    Step getCurrentStep(long userId);
+
     Step toNextStep(long userId);
 
     Step toPreviousStep(long userId);
@@ -21,4 +23,8 @@ public interface CacheService {
     void persistIngredientSuggestions(long userId, Step currentStep, Set<IngredientValue> ingredients);
 
     Set<ZSetOperations.TypedTuple<String>> getNextIngredientSuggestions(long userId, Step currentStep);
+
+    Set<ZSetOperations.TypedTuple<String>> getPreviousIngredientSuggestions(long userId, Step currentStep);
+
+    long getCurrentIngredientSuggestionPage(long userId, Step currentStep);
 }

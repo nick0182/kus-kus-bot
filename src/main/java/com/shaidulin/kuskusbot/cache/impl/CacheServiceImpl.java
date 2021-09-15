@@ -20,7 +20,7 @@ public class CacheServiceImpl implements CacheService {
 
     private final ZSetOperations<String, String> ingredientsRedisTemplate;
 
-    private final ValueOperations<String, Integer> ingredientsIndexRedisTemplate;
+    private final ValueOperations<String, Integer> ingredientsPageRedisTemplate;
 
     @Override
     public boolean isNewUser(Update update) {
@@ -36,6 +36,11 @@ public class CacheServiceImpl implements CacheService {
     public boolean isIngredientSearch(Update update) {
         Step currentStep = stepsRedisTemplate.index(update.getMessage().getFrom().getId(), 0);
         return currentStep != null && currentStep.equals(Step.START);
+    }
+
+    @Override
+    public Step getCurrentStep(long userId) {
+        return stepsRedisTemplate.index(userId, 0);
     }
 
     @Override
@@ -60,7 +65,7 @@ public class CacheServiceImpl implements CacheService {
                 ingredients.forEach(ingredient ->
                         operations.opsForZSet().add(ingredientKeys[0], ingredient.getName(), ingredient.getCount()));
 
-                operations.opsForValue().set(ingredientKeys[1], 0); // point to first ingredient
+                operations.opsForValue().set(ingredientKeys[1], -1); // create page cache
 
                 operations.exec(); // commit transaction
                 return null;
@@ -71,8 +76,23 @@ public class CacheServiceImpl implements CacheService {
     @Override
     public Set<ZSetOperations.TypedTuple<String>> getNextIngredientSuggestions(long userId, Step currentStep) {
         String[] ingredientKeys = composeIngredientKeys(userId, currentStep);
-        long currentIndex = Objects.requireNonNull(ingredientsIndexRedisTemplate.increment(ingredientKeys[1], 3)) - 3;
-        return ingredientsRedisTemplate.reverseRangeWithScores(ingredientKeys[0], currentIndex, -1);
+        long currentPage = Objects.requireNonNull(ingredientsPageRedisTemplate.increment(ingredientKeys[1]));
+        long start = currentPage * 3;
+        return ingredientsRedisTemplate.reverseRangeWithScores(ingredientKeys[0], start, -1);
+    }
+
+    @Override
+    public Set<ZSetOperations.TypedTuple<String>> getPreviousIngredientSuggestions(long userId, Step currentStep) {
+        String[] ingredientKeys = composeIngredientKeys(userId, currentStep);
+        long currentPage = Objects.requireNonNull(ingredientsPageRedisTemplate.decrement(ingredientKeys[1]));
+        long start = currentPage * 3;
+        return ingredientsRedisTemplate.reverseRangeWithScores(ingredientKeys[0], start, -1);
+    }
+
+    @Override
+    public long getCurrentIngredientSuggestionPage(long userId, Step currentStep) {
+        String[] ingredientKeys = composeIngredientKeys(userId, currentStep);
+        return Objects.requireNonNull(ingredientsPageRedisTemplate.get(ingredientKeys[1]));
     }
 
     private String[] composeIngredientKeys(long userId, Step currentStep) {

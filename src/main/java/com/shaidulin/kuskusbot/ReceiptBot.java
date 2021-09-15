@@ -7,16 +7,22 @@ import com.shaidulin.kuskusbot.service.ReceiptService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.telegram.abilitybots.api.bot.AbilityBot;
+import org.telegram.abilitybots.api.bot.BaseAbilityBot;
 import org.telegram.abilitybots.api.db.MapDBContext;
 import org.telegram.abilitybots.api.objects.Ability;
 import org.telegram.abilitybots.api.objects.MessageContext;
 import org.telegram.abilitybots.api.toggle.BareboneToggle;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.util.*;
 
+import static org.telegram.abilitybots.api.objects.Flag.CALLBACK_QUERY;
 import static org.telegram.abilitybots.api.objects.Flag.TEXT;
 import static org.telegram.abilitybots.api.objects.Locality.USER;
 import static org.telegram.abilitybots.api.objects.Privacy.PUBLIC;
@@ -29,6 +35,10 @@ public class ReceiptBot extends AbilityBot {
     private final CacheService cacheService;
 
     private final ReceiptService receiptService;
+
+    private static final String SHOW_MORE_SUGGESTIONS = "Ещё";
+
+    private static final String SHOW_LESS_SUGGESTIONS = "Предыдущие";
 
     public ReceiptBot(String botToken, String botUsername, int creatorId,
                       CacheService cacheService, ReceiptService receiptService) {
@@ -74,6 +84,8 @@ public class ReceiptBot extends AbilityBot {
                 .locality(USER)
                 .input(0)
                 .action(this::startIngredientSearch)
+                .reply(this::reactOnPrompt, TEXT, upd -> !upd.getMessage().isCommand())
+                .reply(this::reactOnSuggestion, CALLBACK_QUERY)
                 .build();
     }
 
@@ -84,22 +96,12 @@ public class ReceiptBot extends AbilityBot {
         silent.send("Пожалуйста напиши первый ингредиент", userId);
     }
 
-    public Ability userSentTextMessage() {
-        return Ability.builder()
-                .name(DEFAULT)
-                .flag(TEXT)
-                .privacy(PUBLIC)
-                .locality(USER)
-                .input(0)
-                .action(this::reactOnMessage)
-                .build();
-    }
-
-    private void reactOnMessage(MessageContext context) {
-        long userId = context.user().getId();
-        Step currentStep = cacheService.toNextStep(userId);
+    private void reactOnPrompt(BaseAbilityBot bot, Update update) {
+        Message userMessage = update.getMessage();
+        long userId = userMessage.getFrom().getId();
+        Step currentStep = cacheService.getCurrentStep(userId);
         if (currentStep != null) {
-            String ingredientSuggest = context.update().getMessage().getText();
+            String ingredientSuggest = userMessage.getText();
             log.debug("New message text: {} from user: {} on step: {}", ingredientSuggest, userId, currentStep);
             switch (currentStep) {
                 case FIRST -> receiptService.suggestIngredients(ingredientSuggest)
@@ -109,20 +111,28 @@ public class ReceiptBot extends AbilityBot {
                                     cacheService.persistIngredientSuggestions(userId, currentStep, foundMatch.getIngredients());
                                     sendIngredientButtons(userId, currentStep);
                                 },
-                                error -> {
-                                    log.error("Failed to suggest ingredients", error);
-                                    cacheService.toPreviousStep(userId); // rollback
-                                }
+                                error -> log.error("Failed to suggest ingredients", error)
                         );
                 case SECOND -> silent.send("Пожалуйста напиши третий ингредиент", userId);
                 case THIRD -> silent.send("Получены все ингредиенты", userId);
-                default -> {
-                    log.warn("User {} is not in the context of ingredient search, ignoring message...", userId);
-                    cacheService.toPreviousStep(userId); // rollback
-                }
+                default -> log.warn("User {} is not in the context of ingredient search, ignoring message...", userId);
             }
         } else {
             log.error("User {} should have been populated to cache but hadn't been", userId);
+        }
+    }
+
+    private void reactOnSuggestion(BaseAbilityBot bot, Update update) {
+        CallbackQuery userCallbackQuery = update.getCallbackQuery();
+        long userId = userCallbackQuery.getFrom().getId();
+        Step currentStep = cacheService.getCurrentStep(userId);
+        Long chatId = userCallbackQuery.getMessage().getChatId();
+        Integer messageId = userCallbackQuery.getMessage().getMessageId();
+        String suggestion = userCallbackQuery.getData();
+        if (suggestion.equals(SHOW_MORE_SUGGESTIONS)) {
+            sendNextIngredientButtons(userId, currentStep, chatId, messageId);
+        } else if (suggestion.equals(SHOW_LESS_SUGGESTIONS)) {
+            sendPreviousIngredientButtons(userId, currentStep, chatId, messageId);
         }
     }
 
@@ -132,14 +142,52 @@ public class ReceiptBot extends AbilityBot {
             log.warn("No ingredients were suggested for input: {} sent by user: {}",
                     ingredientSuggest, userId);
             silent.send("Ничего не нашли \uD83E\uDD14 Попробуй еще раз", userId);
-            cacheService.toPreviousStep(userId); // rollback
         }
         return !isEmpty;
     }
 
     private void sendIngredientButtons(long userId, Step currentStep) {
-
         Set<ZSetOperations.TypedTuple<String>> ingredients = cacheService.getNextIngredientSuggestions(userId, currentStep);
+        InlineKeyboardMarkup ingredientKeyboard = setupSuggestionsKeyboard(ingredients, true);
+
+        SendMessage ingredientButtonsMessage = SendMessage
+                .builder()
+                .text("Вот что удалось найти")
+                .chatId(String.valueOf(userId))
+                .replyMarkup(ingredientKeyboard)
+                .build();
+        silent.execute(ingredientButtonsMessage);
+    }
+
+    private void sendNextIngredientButtons(long userId, Step currentStep, Long chatId, Integer messageId) {
+        Set<ZSetOperations.TypedTuple<String>> ingredients = cacheService.getNextIngredientSuggestions(userId, currentStep);
+        boolean isFirstPage = cacheService.getCurrentIngredientSuggestionPage(userId, currentStep) == 0;
+        InlineKeyboardMarkup ingredientKeyboard = setupSuggestionsKeyboard(ingredients, isFirstPage);
+
+        EditMessageReplyMarkup nextIngredientButtonsMessage = EditMessageReplyMarkup
+                .builder()
+                .chatId(String.valueOf(chatId))
+                .messageId(messageId)
+                .replyMarkup(ingredientKeyboard)
+                .build();
+        silent.execute(nextIngredientButtonsMessage);
+    }
+
+    private void sendPreviousIngredientButtons(long userId, Step currentStep, Long chatId, Integer messageId) {
+        Set<ZSetOperations.TypedTuple<String>> ingredients = cacheService.getPreviousIngredientSuggestions(userId, currentStep);
+        boolean isFirstPage = cacheService.getCurrentIngredientSuggestionPage(userId, currentStep) == 0;
+        InlineKeyboardMarkup ingredientKeyboard = setupSuggestionsKeyboard(ingredients, isFirstPage);
+
+        EditMessageReplyMarkup previousIngredientButtonsMessage = EditMessageReplyMarkup
+                .builder()
+                .chatId(String.valueOf(chatId))
+                .messageId(messageId)
+                .replyMarkup(ingredientKeyboard)
+                .build();
+        silent.execute(previousIngredientButtonsMessage);
+    }
+
+    private InlineKeyboardMarkup setupSuggestionsKeyboard(Set<ZSetOperations.TypedTuple<String>> ingredients, boolean isFirstPage) {
         boolean hasMore = ingredients.size() > 3;
 
         InlineKeyboardMarkup ingredientKeyboard = new InlineKeyboardMarkup();
@@ -165,22 +213,34 @@ public class ReceiptBot extends AbilityBot {
                                                 null
                                         ))));
 
+        if (!isFirstPage) {
+            ingredientKeyboardButtons.add(
+                    Collections.singletonList(
+                            new InlineKeyboardButton(
+                                    SHOW_LESS_SUGGESTIONS,
+                                    null,
+                                    SHOW_LESS_SUGGESTIONS, null,
+                                    null,
+                                    null,
+                                    null,
+                                    null)));
+        }
+
         if (hasMore) {
             ingredientKeyboardButtons.add(
                     Collections.singletonList(
                             new InlineKeyboardButton(
-                                    "Ещё", null, "Еще", null, null, null, null, null)));
+                                    SHOW_MORE_SUGGESTIONS,
+                                    null,
+                                    SHOW_MORE_SUGGESTIONS, null,
+                                    null,
+                                    null,
+                                    null,
+                                    null)));
         }
 
         ingredientKeyboard.setKeyboard(ingredientKeyboardButtons);
-
-        SendMessage ingredientButtonsMessage = SendMessage
-                .builder()
-                .text("Вот что удалось найти")
-                .chatId(String.valueOf(userId))
-                .replyMarkup(ingredientKeyboard)
-                .build();
-        silent.execute(ingredientButtonsMessage);
+        return ingredientKeyboard;
     }
 
 }
