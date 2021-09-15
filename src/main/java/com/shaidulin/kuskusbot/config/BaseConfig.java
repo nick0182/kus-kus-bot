@@ -1,11 +1,13 @@
 package com.shaidulin.kuskusbot.config;
 
 import com.shaidulin.kuskusbot.ReceiptBot;
-import com.shaidulin.kuskusbot.cache.CacheService;
-import com.shaidulin.kuskusbot.cache.Step;
-import com.shaidulin.kuskusbot.cache.impl.CacheServiceImpl;
-import com.shaidulin.kuskusbot.service.ReceiptService;
-import com.shaidulin.kuskusbot.service.impl.ReceiptServiceImpl;
+import com.shaidulin.kuskusbot.ability.IngredientSearchAbility;
+import com.shaidulin.kuskusbot.ability.NewUserAbility;
+import com.shaidulin.kuskusbot.service.cache.CacheService;
+import com.shaidulin.kuskusbot.service.cache.Step;
+import com.shaidulin.kuskusbot.service.cache.impl.CacheServiceImpl;
+import com.shaidulin.kuskusbot.service.api.ReceiptService;
+import com.shaidulin.kuskusbot.service.api.impl.ReceiptServiceImpl;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -13,6 +15,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericToStringSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.telegram.abilitybots.api.util.AbilityExtension;
 import org.telegram.telegrambots.meta.generics.LongPollingBot;
 
 public class BaseConfig {
@@ -89,7 +92,17 @@ public class BaseConfig {
     }
 
     @Bean
-    LongPollingBot receiptBot(CacheService cacheService, ReceiptService receiptService) {
-        return new ReceiptBot(token, username, creatorId, cacheService, receiptService);
+    AbilityExtension newUserAbility(CacheService cacheService) {
+        return new NewUserAbility(cacheService);
+    }
+
+    @Bean
+    AbilityExtension ingredientSearchAbility(CacheService cacheService, ReceiptService receiptService) {
+        return new IngredientSearchAbility(cacheService, receiptService);
+    }
+
+    @Bean
+    LongPollingBot receiptBot(AbilityExtension newUserAbility, AbilityExtension ingredientSearchAbility) {
+        return new ReceiptBot(token, username, creatorId, newUserAbility, ingredientSearchAbility);
     }
 }

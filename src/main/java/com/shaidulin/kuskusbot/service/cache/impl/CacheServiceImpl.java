@@ -1,7 +1,7 @@
-package com.shaidulin.kuskusbot.cache.impl;
+package com.shaidulin.kuskusbot.service.cache.impl;
 
-import com.shaidulin.kuskusbot.cache.CacheService;
-import com.shaidulin.kuskusbot.cache.Step;
+import com.shaidulin.kuskusbot.service.cache.CacheService;
+import com.shaidulin.kuskusbot.service.cache.Step;
 import com.shaidulin.kuskusbot.dto.IngredientValue;
 import lombok.AllArgsConstructor;
 import org.jetbrains.annotations.NotNull;

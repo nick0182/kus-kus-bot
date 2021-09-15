@@ -1,4 +1,4 @@
-package com.shaidulin.kuskusbot.cache;
+package com.shaidulin.kuskusbot.service.cache;
 
 import com.shaidulin.kuskusbot.dto.IngredientValue;
 import org.springframework.data.redis.core.ZSetOperations;

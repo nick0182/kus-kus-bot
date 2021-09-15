@@ -1,4 +1,4 @@
-package com.shaidulin.kuskusbot.cache;
+package com.shaidulin.kuskusbot.service.cache;
 
 public enum Step {
     START, FIRST, SECOND, THIRD

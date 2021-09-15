@@ -1,7 +1,7 @@
-package com.shaidulin.kuskusbot.service.impl;
+package com.shaidulin.kuskusbot.service.api.impl;
 
 import com.shaidulin.kuskusbot.dto.IngredientMatch;
-import com.shaidulin.kuskusbot.service.ReceiptService;
+import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.web.reactive.function.client.WebClient;

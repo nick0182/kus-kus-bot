@@ -1,4 +1,4 @@
-package com.shaidulin.kuskusbot.service;
+package com.shaidulin.kuskusbot.service.api;
 
 import com.shaidulin.kuskusbot.dto.IngredientMatch;
 import reactor.core.publisher.Mono;
