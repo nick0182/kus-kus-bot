@@ -1,26 +1,49 @@
 package com.shaidulin.kuskusbot;
 
+import com.shaidulin.kuskusbot.processor.BotProcessor;
+import com.shaidulin.kuskusbot.update.UpdateKey;
 import lombok.extern.slf4j.Slf4j;
-import org.telegram.abilitybots.api.bot.AbilityBot;
-import org.telegram.abilitybots.api.db.MapDBContext;
-import org.telegram.abilitybots.api.toggle.BareboneToggle;
-import org.telegram.abilitybots.api.util.AbilityExtension;
+import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static com.shaidulin.kuskusbot.update.UpdateKeyMapper.mapKey;
 
 @Slf4j
-public class ReceiptBot extends AbilityBot {
+public abstract class ReceiptBot extends TelegramLongPollingBot {
 
-    private final int creatorId;
+    private final Map<UpdateKey, BotProcessor> botProcessorMap;
 
-    public ReceiptBot(String botToken, String botUsername, int creatorId,
-                      AbilityExtension newUserAbility, AbilityExtension ingredientSearchAbility) {
-        super(botToken, botUsername, MapDBContext.offlineInstance(botUsername), new BareboneToggle());
-        this.creatorId = creatorId;
-        addExtensions(newUserAbility, ingredientSearchAbility);
+    public ReceiptBot(List<BotProcessor> botProcessorList) {
+        botProcessorMap = botProcessorList
+                .stream()
+                .collect(Collectors.toMap(BotProcessor::getKey, Function.identity()));
     }
 
     @Override
-    public long creatorId() {
-        return creatorId;
+    public void onUpdateReceived(Update update) {
+        log.debug("Got update: {}", update);
+        UpdateKey updateKey = mapKey(update);
+        if (Objects.nonNull(updateKey)) {
+            botProcessorMap
+                    .get(updateKey)
+                    .process(update)
+                    .subscribe(
+                            botApiMethod -> {
+                                try {
+                                    execute(botApiMethod);
+                                } catch (TelegramApiException e) {
+                                    log.error("Failed to execute Telegram API method", e);
+                                }
+                            },
+                            error -> log.error("Error occurred during process of update: " + update, error)
+                    );
+        }
     }
-
 }

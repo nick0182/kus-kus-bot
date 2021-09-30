@@ -8,7 +8,12 @@ import lombok.Value;
 @Value
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
 @AllArgsConstructor
-public class IngredientValue {
+public class IngredientValue implements Comparable<IngredientValue> {
     String name;
     int count;
+
+    @Override
+    public int compareTo(IngredientValue otherIngredient) {
+        return Integer.compare(otherIngredient.count, count);
+    }
 }

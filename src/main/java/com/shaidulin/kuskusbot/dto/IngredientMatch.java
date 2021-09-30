@@ -5,11 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 
-import java.util.Set;
+import java.util.TreeSet;
 
 @Value
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
 @AllArgsConstructor
 public class IngredientMatch {
-    Set<IngredientValue> ingredients;
+    TreeSet<IngredientValue> ingredients;
 }

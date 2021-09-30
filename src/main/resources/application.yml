@@ -3,6 +3,9 @@ logging:
     com:
       shaidulin:
         kuskusbot: DEBUG
+    io:
+      lettuce:
+        core: DEBUG
 
 spring:
   main:
