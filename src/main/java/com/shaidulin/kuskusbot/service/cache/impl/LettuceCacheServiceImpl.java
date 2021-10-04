@@ -9,9 +9,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 
-import java.util.Arrays;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("ClassCanBeRecord")
@@ -19,8 +17,6 @@ import java.util.stream.Collectors;
 public class LettuceCacheServiceImpl implements LettuceCacheService {
 
     private final RedisReactiveCommands<String, String> redisReactiveCommands;
-
-    private static final int INGREDIENTS_PAGE_SIZE = 3;
 
     @Override
     public Mono<Boolean> flushUserCache(String userId) {
@@ -64,13 +60,13 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
     }
 
     @Override
-    public Mono<Boolean> storeIngredients(String userId, Step searchStep, Set<IngredientValue> ingredients) {
+    public Mono<Boolean> storeIngredientSuggestions(String userId, Step searchStep, Set<IngredientValue> ingredients) {
         //noinspection RedundantCast
         return redisReactiveCommands
                 .multi()
                 .doOnSuccess(ignored ->
                         redisReactiveCommands
-                                .zadd(composeIngredientsKey(userId, searchStep),
+                                .zadd(composeIngredientSuggestionsKey(userId, searchStep),
                                         ingredients
                                                 .stream()
                                                 .map(ingredient -> ScoredValue.just(ingredient.getCount(), ingredient.getName()))
@@ -81,18 +77,40 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
     }
 
     @Override
-    public Mono<TreeSet<IngredientValue>> getNextIngredients(String userId, Step searchStep, long page) {
-        long start = page * INGREDIENTS_PAGE_SIZE;
+    public Mono<Boolean> storeIngredient(String userId, String ingredient) {
         return redisReactiveCommands
-                .zrevrangeWithScores(composeIngredientsKey(userId, searchStep), start, -1)
+                .multi()
+                .doOnSuccess(ignored ->
+                        redisReactiveCommands.lpush(composeIngredientsKey(userId), ingredient).subscribe())
+                .doOnSuccess(ignored -> toNextStep(userId).subscribe())
+                .then(redisReactiveCommands.exec())
+                .map(objects -> !objects.wasDiscarded());
+    }
+
+    @Override
+    public Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId, Step searchStep) {
+        return redisReactiveCommands
+                .zrevrangeWithScores(composeIngredientSuggestionsKey(userId, searchStep), 0, -1)
                 .collect(
                         Collectors.mapping(
                                 scoredValue -> new IngredientValue(scoredValue.getValue(), (int) scoredValue.getScore()),
                                 Collectors.toCollection(TreeSet::new)));
     }
 
-    private String composeIngredientsKey(String userId, Step searchStep) {
-        return String.join(":", userId, searchStep.toString(), "ingredients");
+    @Override
+    public Mono<List<String>> getIngredients(String userId) {
+        return redisReactiveCommands
+                .lrange(composeIngredientsKey(userId), 0, -1)
+                .collectList()
+                .defaultIfEmpty(Collections.emptyList());
+    }
+
+    private String composeIngredientSuggestionsKey(String userId, Step searchStep) {
+        return String.join(":", userId, searchStep.toString(), "ingredient", "suggestions");
+    }
+
+    private String composeIngredientsKey(String userId) {
+        return String.join(":", userId, "ingredients");
     }
 
     private Mono<String> toNextStep(String userId) {

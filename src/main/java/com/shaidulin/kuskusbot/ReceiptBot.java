@@ -34,6 +34,11 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
             botProcessorMap
                     .get(updateKey)
                     .process(update)
+                    .doOnSuccess(botApiMethod -> {
+                        if (botApiMethod == null) {
+                            log.error("No response was constructed and sent for update: " + update);
+                        }
+                    })
                     .subscribe(
                             botApiMethod -> {
                                 try {

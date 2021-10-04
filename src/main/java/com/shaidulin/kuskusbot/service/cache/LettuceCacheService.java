@@ -3,6 +3,7 @@ package com.shaidulin.kuskusbot.service.cache;
 import com.shaidulin.kuskusbot.dto.IngredientValue;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -14,7 +15,11 @@ public interface LettuceCacheService {
 
     Mono<Step> getIngredientSearchStep(String userId);
 
-    Mono<Boolean> storeIngredients(String userId, Step searchStep, Set<IngredientValue> ingredients);
+    Mono<Boolean> storeIngredientSuggestions(String userId, Step searchStep, Set<IngredientValue> ingredients);
 
-    Mono<TreeSet<IngredientValue>> getNextIngredients(String userId, Step searchStep, long page);
+    Mono<Boolean> storeIngredient(String userId, String ingredient);
+
+    Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId, Step searchStep);
+
+    Mono<List<String>> getIngredients(String userId);
 }

@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 
+import java.util.Objects;
+
 @Value
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
 @AllArgsConstructor
@@ -14,6 +16,11 @@ public class IngredientValue implements Comparable<IngredientValue> {
 
     @Override
     public int compareTo(IngredientValue otherIngredient) {
-        return Integer.compare(otherIngredient.count, count);
+        int countCompared = Integer.compare(otherIngredient.count, count);
+        if (countCompared == 0) {
+            return Objects.requireNonNull(name).compareTo(Objects.requireNonNull(otherIngredient.name));
+        } else {
+            return countCompared;
+        }
     }
 }

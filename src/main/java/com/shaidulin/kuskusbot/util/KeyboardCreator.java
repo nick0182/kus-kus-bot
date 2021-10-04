@@ -21,12 +21,15 @@ public class KeyboardCreator {
             buttons.add(createButtonRow(SHOW_LESS_SUGGESTIONS, String.valueOf(page - 1)));
         }
 
+        long shownCount = (long) page * PAGE_SIZE;
+
         ingredients
                 .stream()
-                .limit(3)
+                .skip(shownCount)
+                .limit(PAGE_SIZE)
                 .forEach(ingredient -> buttons.add(createButtonRow(createButtonText(ingredient), ingredient.getName())));
 
-        if (ingredients.size() > PAGE_SIZE) {
+        if (ingredients.size() > shownCount + PAGE_SIZE) {
             buttons.add(createButtonRow(SHOW_MORE_SUGGESTIONS, String.valueOf(page + 1)));
         }
 

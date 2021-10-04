@@ -19,16 +19,16 @@ public class IngredientsPageBotProcessor extends BotProcessor {
     public Mono<EditMessageReplyMarkup> process(Update update) {
         CallbackQuery userCallbackQuery = update.getCallbackQuery();
         String userId = userCallbackQuery.getFrom().getId().toString();
-        Long chatId = userCallbackQuery.getMessage().getChatId();
+        String chatId = userCallbackQuery.getMessage().getChatId().toString();
         Integer messageId = userCallbackQuery.getMessage().getMessageId();
         int page = Integer.parseInt(userCallbackQuery.getData());
         return lettuceCacheService
                 .getIngredientSearchStep(userId)
-                .flatMap(searchStep -> lettuceCacheService.getNextIngredients(userId, searchStep, page))
+                .flatMap(searchStep -> lettuceCacheService.getIngredientSuggestions(userId, searchStep))
                 .map(ingredients -> KeyboardCreator.createSuggestionsKeyboard(ingredients, page))
                 .map(ingredientsKeyboard -> EditMessageReplyMarkup
                         .builder()
-                        .chatId(String.valueOf(chatId))
+                        .chatId(chatId)
                         .messageId(messageId)
                         .replyMarkup(ingredientsKeyboard)
                         .build());

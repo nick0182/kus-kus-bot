@@ -6,7 +6,17 @@ logging:
     io:
       lettuce:
         core: DEBUG
+    org:
+      springframework:
+        web:
+          reactive:
+            function:
+              client:
+                ExchangeFunctions: TRACE
+
 
 spring:
   main:
     web-application-type: none
+  mvc:
+    log-request-details: true

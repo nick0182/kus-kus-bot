@@ -22,10 +22,12 @@ public class IngredientSearchBotProcessor extends BotProcessor {
     @Override
     public Mono<SendMessage> process(Update update) {
         String userId = update.getMessage().getFrom().getId().toString();
-        String ingredientPrompt = update.getMessage().getText();
+        String toSearch = update.getMessage().getText();
         return lettuceCacheService
                 .getIngredientSearchStep(userId)
-                .zipWith(receiptService.suggestIngredients(ingredientPrompt))
+                .zipWith(lettuceCacheService
+                        .getIngredients(userId)
+                        .flatMap(known -> receiptService.suggestIngredients(toSearch, known)))
                 .map(tupleResult -> {
                     if (tupleResult.getT2().getIngredients().isEmpty()) {
                         throw new IllegalArgumentException(); // FIXME create custom exception
@@ -34,12 +36,12 @@ public class IngredientSearchBotProcessor extends BotProcessor {
                     }
                 })
                 .filterWhen(tupleResult ->
-                        lettuceCacheService.storeIngredients(userId, tupleResult.getT1(), tupleResult.getT2())
+                        lettuceCacheService.storeIngredientSuggestions(userId, tupleResult.getT1(), tupleResult.getT2())
                 )
                 .map(tupleResult -> KeyboardCreator.createSuggestionsKeyboard(tupleResult.getT2(), 0))
                 .map(ingredientsKeyboard -> SendMessage
                         .builder()
-                        .text("Вот что удалось найти")
+                        .text("Вот что смог найти")
                         .chatId(userId)
                         .replyMarkup(ingredientsKeyboard)
                         .build()
@@ -47,7 +49,7 @@ public class IngredientSearchBotProcessor extends BotProcessor {
                 .onErrorReturn(IllegalArgumentException.class,
                         SendMessage
                                 .builder()
-                                .text("Ничего не нашли \uD83E\uDD14 Попробуй еще раз")
+                                .text("Ничего не нашел \uD83E\uDD14 Попробуй еще раз")
                                 .chatId(userId)
                                 .build()
                 );
