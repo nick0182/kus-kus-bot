@@ -19,8 +19,7 @@ public class HomePageBotProcessor extends BotProcessor {
         User user = update.getMessage().getFrom();
         String userId = user.getId().toString();
         return lettuceCacheService
-                .flushUserCache(userId)
-                .filter(success -> success)
+                .prepareUserCache(userId)
                 .map(ignored -> new SendMessage(userId, "Приветствую тебя " + user.getFirstName() + " "
                         + user.getLastName() + "! Пожалуйста нажми команду /search чтобы искать рецепт"));
 

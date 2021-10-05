@@ -11,6 +11,7 @@ import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.api.impl.ReceiptServiceImpl;
 import com.shaidulin.kuskusbot.service.cache.LettuceCacheService;
 import com.shaidulin.kuskusbot.service.cache.impl.LettuceCacheServiceImpl;
+import com.shaidulin.kuskusbot.update.Authorizer;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import org.springframework.beans.factory.annotation.Value;
@@ -82,8 +83,13 @@ public class BaseConfig {
     }
 
     @Bean
-    LongPollingBot receiptBot(List<BotProcessor> botProcessorList) {
-        return new ReceiptBot(botProcessorList) {
+    Authorizer authorizer(LettuceCacheService lettuceCacheService) {
+        return new Authorizer(lettuceCacheService);
+    }
+
+    @Bean
+    LongPollingBot receiptBot(Authorizer authorizer, List<BotProcessor> botProcessorList) {
+        return new ReceiptBot(authorizer, botProcessorList) {
             @Override
             public String getBotUsername() {
                 return username;

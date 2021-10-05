@@ -2,14 +2,17 @@ package com.shaidulin.kuskusbot.service.cache.impl;
 
 import com.shaidulin.kuskusbot.dto.IngredientValue;
 import com.shaidulin.kuskusbot.service.cache.LettuceCacheService;
-import com.shaidulin.kuskusbot.service.cache.Step;
+import com.shaidulin.kuskusbot.update.Permission;
 import io.lettuce.core.*;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.AllArgsConstructor;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("ClassCanBeRecord")
@@ -19,8 +22,16 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
     private final RedisReactiveCommands<String, String> redisReactiveCommands;
 
     @Override
-    public Mono<Boolean> flushUserCache(String userId) {
+    public Mono<Boolean> checkPermission(String userId, Permission permission) {
+        return redisReactiveCommands
+                .get(composeKey(userId, "permissions"))
+                .map(String::toCharArray)
+                .map(permissionsArray -> permissionsArray[permission.getIndex()] == '1')
+                .filter(Boolean.TRUE::equals);
+    }
 
+    @Override
+    public Mono<Boolean> prepareUserCache(String userId) {
         return redisReactiveCommands
                 .scan(ScanCursor.INITIAL, ScanArgs.Builder.matches(userId + "*").limit(10))
                 .doOnSuccess(ignored -> redisReactiveCommands
@@ -31,47 +42,33 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                 .doOnNext(keys -> redisReactiveCommands
                         .del(keys.toArray(String[]::new))
                         .subscribe())
-                .doOnSuccess(ignored -> redisReactiveCommands
-                        .rpush(userId, Arrays.stream(Step.values()).map(Enum::toString).toArray(String[]::new))
-                        .subscribe())
+                .doOnSuccess(ignored -> initPermissions(userId))
                 .then(redisReactiveCommands.exec())
-                .map(objects -> !objects.wasDiscarded());
+                .map(objects -> !objects.wasDiscarded())
+                .filter(Boolean.TRUE::equals);
     }
 
     @Override
     public Mono<String> startSearch(String userId) {
-        return redisReactiveCommands
-                .lindex(userId, 0)
-                .filter(currentStep -> Step.valueOf(currentStep).equals(Step.START))
-                .flatMap(ignored -> toNextStep(userId));
+        return modifyPermission(userId, "010");
     }
 
     @Override
-    public Mono<Step> getIngredientSearchStep(String userId) {
-        return redisReactiveCommands
-                .lindex(userId, 0)
-                .map(Step::valueOf)
-                .filter(currentStep ->
-                        switch (currentStep) {
-                            case FIRST, SECOND, THIRD -> true;
-                            default -> false;
-                        }
-                );
-    }
-
-    @Override
-    public Mono<Boolean> storeIngredientSuggestions(String userId, Step searchStep, Set<IngredientValue> ingredients) {
+    public Mono<Boolean> storeIngredientSuggestions(String userId, Set<IngredientValue> ingredients) {
+        String ingredientSuggestionsKey = composeKey(userId, "suggestions");
         //noinspection RedundantCast
         return redisReactiveCommands
                 .multi()
+                .doOnSuccess(ignored -> redisReactiveCommands.del(ingredientSuggestionsKey).subscribe())
                 .doOnSuccess(ignored ->
                         redisReactiveCommands
-                                .zadd(composeIngredientSuggestionsKey(userId, searchStep),
+                                .zadd(ingredientSuggestionsKey,
                                         ingredients
                                                 .stream()
                                                 .map(ingredient -> ScoredValue.just(ingredient.getCount(), ingredient.getName()))
                                                 .<ScoredValue<String>>toArray(ScoredValue[]::new))
                                 .subscribe())
+                .doOnSuccess(ignored -> modifyPermission(userId, "001").subscribe())
                 .then(redisReactiveCommands.exec())
                 .map(transactionResult -> !((TransactionResult) transactionResult).wasDiscarded());
     }
@@ -81,16 +78,19 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
         return redisReactiveCommands
                 .multi()
                 .doOnSuccess(ignored ->
-                        redisReactiveCommands.lpush(composeIngredientsKey(userId), ingredient).subscribe())
-                .doOnSuccess(ignored -> toNextStep(userId).subscribe())
+                        redisReactiveCommands
+                                .lpush(composeKey(userId, "ingredients"), ingredient)
+                                .subscribe())
+                .doOnSuccess(ignored -> modifyPermission(userId, "010").subscribe())
                 .then(redisReactiveCommands.exec())
-                .map(objects -> !objects.wasDiscarded());
+                .map(objects -> !objects.wasDiscarded())
+                .filter(Boolean.TRUE::equals);
     }
 
     @Override
-    public Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId, Step searchStep) {
+    public Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId) {
         return redisReactiveCommands
-                .zrevrangeWithScores(composeIngredientSuggestionsKey(userId, searchStep), 0, -1)
+                .zrevrangeWithScores(composeKey(userId, "suggestions"), 0, -1)
                 .collect(
                         Collectors.mapping(
                                 scoredValue -> new IngredientValue(scoredValue.getValue(), (int) scoredValue.getScore()),
@@ -100,20 +100,20 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
     @Override
     public Mono<List<String>> getIngredients(String userId) {
         return redisReactiveCommands
-                .lrange(composeIngredientsKey(userId), 0, -1)
+                .lrange(composeKey(userId, "ingredients"), 0, -1)
                 .collectList()
                 .defaultIfEmpty(Collections.emptyList());
     }
 
-    private String composeIngredientSuggestionsKey(String userId, Step searchStep) {
-        return String.join(":", userId, searchStep.toString(), "ingredient", "suggestions");
+    private void initPermissions(String userId) {
+        redisReactiveCommands.set(composeKey(userId, "permissions"), "100").subscribe();
     }
 
-    private String composeIngredientsKey(String userId) {
-        return String.join(":", userId, "ingredients");
+    private Mono<String> modifyPermission(String userId, String permissionString) {
+        return redisReactiveCommands.set(composeKey(userId, "permissions"), permissionString);
     }
 
-    private Mono<String> toNextStep(String userId) {
-        return redisReactiveCommands.lmove(userId, userId, LMoveArgs.Builder.leftRight());
+    private String composeKey(String userId, String suffix) {
+        return String.join(":", userId, suffix);
     }
 }

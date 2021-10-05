@@ -23,8 +23,7 @@ public class IngredientsPageBotProcessor extends BotProcessor {
         Integer messageId = userCallbackQuery.getMessage().getMessageId();
         int page = Integer.parseInt(userCallbackQuery.getData());
         return lettuceCacheService
-                .getIngredientSearchStep(userId)
-                .flatMap(searchStep -> lettuceCacheService.getIngredientSuggestions(userId, searchStep))
+                .getIngredientSuggestions(userId)
                 .map(ingredients -> KeyboardCreator.createSuggestionsKeyboard(ingredients, page))
                 .map(ingredientsKeyboard -> EditMessageReplyMarkup
                         .builder()

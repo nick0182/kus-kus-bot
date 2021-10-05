@@ -1,6 +1,5 @@
 package com.shaidulin.kuskusbot.processor.text;
 
-import com.shaidulin.kuskusbot.dto.IngredientMatch;
 import com.shaidulin.kuskusbot.processor.BotProcessor;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.cache.LettuceCacheService;
@@ -24,21 +23,17 @@ public class IngredientSearchBotProcessor extends BotProcessor {
         String userId = update.getMessage().getFrom().getId().toString();
         String toSearch = update.getMessage().getText();
         return lettuceCacheService
-                .getIngredientSearchStep(userId)
-                .zipWith(lettuceCacheService
-                        .getIngredients(userId)
-                        .flatMap(known -> receiptService.suggestIngredients(toSearch, known)))
-                .map(tupleResult -> {
-                    if (tupleResult.getT2().getIngredients().isEmpty()) {
+                .getIngredients(userId)
+                .flatMap(known -> receiptService.suggestIngredients(toSearch, known))
+                .map(ingredientMatch -> {
+                    if (ingredientMatch.getIngredients().isEmpty()) {
                         throw new IllegalArgumentException(); // FIXME create custom exception
                     } else {
-                        return tupleResult.mapT2(IngredientMatch::getIngredients);
+                        return ingredientMatch.getIngredients();
                     }
                 })
-                .filterWhen(tupleResult ->
-                        lettuceCacheService.storeIngredientSuggestions(userId, tupleResult.getT1(), tupleResult.getT2())
-                )
-                .map(tupleResult -> KeyboardCreator.createSuggestionsKeyboard(tupleResult.getT2(), 0))
+                .filterWhen(ingredientMatch -> lettuceCacheService.storeIngredientSuggestions(userId, ingredientMatch))
+                .map(ingredientMatch -> KeyboardCreator.createSuggestionsKeyboard(ingredientMatch, 0))
                 .map(ingredientsKeyboard -> SendMessage
                         .builder()
                         .text("Вот что смог найти")

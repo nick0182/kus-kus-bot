@@ -24,8 +24,7 @@ public class IngredientSelectionBotProcessor extends BotProcessor {
         Integer messageId = message.getMessageId();
         String selectedIngredient = userCallbackQuery.getData();
         return lettuceCacheService
-                .getIngredientSearchStep(userId)
-                .filterWhen(ignored -> lettuceCacheService.storeIngredient(userId, selectedIngredient))
+                .storeIngredient(userId, selectedIngredient)
                 .map(ignored -> EditMessageText
                         .builder()
                         .chatId(chatId)
