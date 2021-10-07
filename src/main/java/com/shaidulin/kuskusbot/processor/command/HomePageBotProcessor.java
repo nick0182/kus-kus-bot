@@ -3,6 +3,7 @@ package com.shaidulin.kuskusbot.processor.command;
 import com.shaidulin.kuskusbot.processor.BotProcessor;
 import com.shaidulin.kuskusbot.service.cache.LettuceCacheService;
 import com.shaidulin.kuskusbot.update.UpdateKey;
+import com.shaidulin.kuskusbot.util.ButtonConstants;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -20,9 +21,13 @@ public class HomePageBotProcessor extends BotProcessor {
         String userId = user.getId().toString();
         return lettuceCacheService
                 .prepareUserCache(userId)
-                .map(ignored -> new SendMessage(userId, "Приветствую тебя " + user.getFirstName() + " "
-                        + user.getLastName() + "! Пожалуйста нажми команду /search чтобы искать рецепт"));
-
+                .map(ignored -> SendMessage
+                        .builder()
+                        .text("Приветствую тебя " + user.getFirstName() + " " + user.getLastName() +
+                                "! Пожалуйста нажми кнопку \"Начать поиск\" чтобы искать рецепты")
+                        .chatId(userId)
+                        .replyMarkup(ButtonConstants.startSearchKeyboard)
+                        .build());
     }
 
     @Override

@@ -4,33 +4,32 @@ import com.shaidulin.kuskusbot.dto.IngredientValue;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.TreeSet;
 
 public class KeyboardCreator {
-
-    private static final int PAGE_SIZE = 3;
-
-    private static final String SHOW_MORE_SUGGESTIONS = "Ещё";
-
-    private static final String SHOW_LESS_SUGGESTIONS = "Предыдущие";
 
     public static InlineKeyboardMarkup createSuggestionsKeyboard(TreeSet<IngredientValue> ingredients, int page) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
 
         if (page > 0) {
-            buttons.add(createButtonRow(SHOW_LESS_SUGGESTIONS, String.valueOf(page - 1)));
+            buttons.add(createButtonRow("Предыдущие", String.valueOf(page - 1)));
         }
 
-        long shownCount = (long) page * PAGE_SIZE;
+        final int pageSize = 3;
+
+        long shownCount = (long) page * pageSize;
 
         ingredients
                 .stream()
                 .skip(shownCount)
-                .limit(PAGE_SIZE)
+                .limit(pageSize)
                 .forEach(ingredient -> buttons.add(createButtonRow(createButtonText(ingredient), ingredient.getName())));
 
-        if (ingredients.size() > shownCount + PAGE_SIZE) {
-            buttons.add(createButtonRow(SHOW_MORE_SUGGESTIONS, String.valueOf(page + 1)));
+        if (ingredients.size() > shownCount + pageSize) {
+            buttons.add(createButtonRow("Ещё", String.valueOf(page + 1)));
         }
 
         return InlineKeyboardMarkup

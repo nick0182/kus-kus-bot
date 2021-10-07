@@ -42,7 +42,7 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                 .doOnNext(keys -> redisReactiveCommands
                         .del(keys.toArray(String[]::new))
                         .subscribe())
-                .doOnSuccess(ignored -> initPermissions(userId))
+                .doOnSuccess(ignored -> modifyPermission(userId, "01").subscribe())
                 .then(redisReactiveCommands.exec())
                 .map(objects -> !objects.wasDiscarded())
                 .filter(Boolean.TRUE::equals);
@@ -50,7 +50,7 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
 
     @Override
     public Mono<String> startSearch(String userId) {
-        return modifyPermission(userId, "010");
+        return modifyPermission(userId, "10");
     }
 
     @Override
@@ -68,7 +68,7 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                                                 .map(ingredient -> ScoredValue.just(ingredient.getCount(), ingredient.getName()))
                                                 .<ScoredValue<String>>toArray(ScoredValue[]::new))
                                 .subscribe())
-                .doOnSuccess(ignored -> modifyPermission(userId, "001").subscribe())
+                .doOnSuccess(ignored -> modifyPermission(userId, "01").subscribe())
                 .then(redisReactiveCommands.exec())
                 .map(transactionResult -> !((TransactionResult) transactionResult).wasDiscarded());
     }
@@ -81,7 +81,7 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                         redisReactiveCommands
                                 .lpush(composeKey(userId, "ingredients"), ingredient)
                                 .subscribe())
-                .doOnSuccess(ignored -> modifyPermission(userId, "010").subscribe())
+                .doOnSuccess(ignored -> modifyPermission(userId, "01").subscribe())
                 .then(redisReactiveCommands.exec())
                 .map(objects -> !objects.wasDiscarded())
                 .filter(Boolean.TRUE::equals);
@@ -103,10 +103,6 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                 .lrange(composeKey(userId, "ingredients"), 0, -1)
                 .collectList()
                 .defaultIfEmpty(Collections.emptyList());
-    }
-
-    private void initPermissions(String userId) {
-        redisReactiveCommands.set(composeKey(userId, "permissions"), "100").subscribe();
     }
 
     private Mono<String> modifyPermission(String userId, String permissionString) {

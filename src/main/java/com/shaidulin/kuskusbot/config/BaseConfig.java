@@ -5,7 +5,7 @@ import com.shaidulin.kuskusbot.processor.BotProcessor;
 import com.shaidulin.kuskusbot.processor.callback.IngredientSelectionBotProcessor;
 import com.shaidulin.kuskusbot.processor.callback.IngredientsPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.command.HomePageBotProcessor;
-import com.shaidulin.kuskusbot.processor.command.SearchPageBotProcessor;
+import com.shaidulin.kuskusbot.processor.callback.IngredientSearchPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.text.IngredientSearchBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.api.impl.ReceiptServiceImpl;
@@ -63,8 +63,8 @@ public class BaseConfig {
     }
 
     @Bean
-    BotProcessor searchPageBotProcessor(LettuceCacheService lettuceCacheService) {
-        return new SearchPageBotProcessor(lettuceCacheService);
+    BotProcessor ingredientSearchPageBotProcessor(LettuceCacheService lettuceCacheService) {
+        return new IngredientSearchPageBotProcessor(lettuceCacheService);
     }
 
     @Bean

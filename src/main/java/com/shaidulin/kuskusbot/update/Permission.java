@@ -1,9 +1,8 @@
 package com.shaidulin.kuskusbot.update;
 
 public enum Permission {
-    COMMAND(0),
-    MESSAGE(1),
-    CALLBACK(2);
+    MESSAGE(0),
+    CALLBACK(1);
 
     /***
      * defines index in String of permissions
