@@ -4,19 +4,12 @@ import com.shaidulin.kuskusbot.dto.IngredientValue;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.TreeSet;
+import java.util.*;
 
 public class KeyboardCreator {
 
     public static InlineKeyboardMarkup createSuggestionsKeyboard(TreeSet<IngredientValue> ingredients, int page) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
-
-        if (page > 0) {
-            buttons.add(createButtonRow("Предыдущие", String.valueOf(page - 1)));
-        }
 
         final int pageSize = 3;
 
@@ -26,11 +19,10 @@ public class KeyboardCreator {
                 .stream()
                 .skip(shownCount)
                 .limit(pageSize)
-                .forEach(ingredient -> buttons.add(createButtonRow(createButtonText(ingredient), ingredient.getName())));
+                .forEach(ingredient -> buttons.add(
+                        Collections.singletonList(createButton(createButtonText(ingredient), ingredient.getName()))));
 
-        if (ingredients.size() > shownCount + pageSize) {
-            buttons.add(createButtonRow("Ещё", String.valueOf(page + 1)));
-        }
+        createNavigationPanelRow(page, ingredients.size() > shownCount + pageSize).ifPresent(buttons::add);
 
         return InlineKeyboardMarkup
                 .builder()
@@ -38,16 +30,32 @@ public class KeyboardCreator {
                 .build();
     }
 
-    private static List<InlineKeyboardButton> createButtonRow(String text, String data) {
-        return Collections.singletonList(
-                InlineKeyboardButton
-                        .builder()
-                        .text(text)
-                        .callbackData(data)
-                        .build());
+    private static InlineKeyboardButton createButton(String text, String data) {
+        return InlineKeyboardButton
+                .builder()
+                .text(text)
+                .callbackData(data)
+                .build();
     }
 
     private static String createButtonText(IngredientValue ingredient) {
         return String.join(" - ", ingredient.getName(), String.valueOf(ingredient.getCount()));
+    }
+
+    private static Optional<List<InlineKeyboardButton>> createNavigationPanelRow(int page, boolean hasMore) {
+        List<InlineKeyboardButton> navigationPanelRow = new ArrayList<>();
+
+        Optional<InlineKeyboardButton> toPreviousPageButton = page > 0
+                ? Optional.of(createButton("⬅", String.valueOf(page - 1)))
+                : Optional.empty();
+
+        Optional<InlineKeyboardButton> toNextPageButton = hasMore
+                ? Optional.of(createButton("➡", String.valueOf(page + 1)))
+                : Optional.empty();
+
+        toPreviousPageButton.ifPresent(navigationPanelRow::add);
+        toNextPageButton.ifPresent(navigationPanelRow::add);
+
+        return !navigationPanelRow.isEmpty() ? Optional.of(navigationPanelRow) : Optional.empty();
     }
 }

@@ -79,7 +79,7 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                 .multi()
                 .doOnSuccess(ignored ->
                         redisReactiveCommands
-                                .lpush(composeKey(userId, "ingredients"), ingredient)
+                                .rpush(composeKey(userId, "ingredients"), ingredient)
                                 .subscribe())
                 .doOnSuccess(ignored -> modifyPermission(userId, "01").subscribe())
                 .then(redisReactiveCommands.exec())
