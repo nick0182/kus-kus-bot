@@ -31,7 +31,7 @@ public class ReceiptServiceImpl implements ReceiptService {
 
         return webClient
                 .get()
-                .uri(URIBuilder.buildURI(apiURL, "/api/vi/ingredients", queryParams))
+                .uri(URIBuilder.buildURI(apiURL, "/api/v1/ingredients", queryParams))
                 .retrieve()
                 .bodyToMono(IngredientMatch.class);
     }

@@ -16,14 +16,14 @@ class URIBuilderTest {
     void test() {
         // given
         String uri = "http://localhost:9658";
-        String path = "/api/vi/ingredients";
+        String path = "/api/v1/ingredients";
         MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         queryParams.put("toSearch", Collections.singletonList("сыр"));
 
         // when
         URI expected = UriComponentsBuilder
                 .newInstance()
-                .uri(URI.create("http://localhost:9658/api/vi/ingredients?toSearch=сыр"))
+                .uri(URI.create("http://localhost:9658/api/v1/ingredients?toSearch=сыр"))
                 .encode()
                 .build()
                 .toUri();
@@ -36,7 +36,7 @@ class URIBuilderTest {
         queryParams.put("known", Collections.emptyList());
         expected = UriComponentsBuilder
                 .newInstance()
-                .uri(URI.create("http://localhost:9658/api/vi/ingredients?toSearch=сыр&known"))
+                .uri(URI.create("http://localhost:9658/api/v1/ingredients?toSearch=сыр&known"))
                 .encode()
                 .build()
                 .toUri();
