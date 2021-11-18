@@ -1,9 +1,9 @@
 package com.shaidulin.kuskusbot.service.api.impl;
 
-import com.shaidulin.kuskusbot.dto.IngredientMatch;
+import com.shaidulin.kuskusbot.dto.ingredient.IngredientMatch;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.util.URIBuilder;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.springframework.util.LinkedMultiValueMap;
@@ -14,13 +14,7 @@ import reactor.core.publisher.Mono;
 import java.util.Collections;
 import java.util.List;
 
-@SuppressWarnings("ClassCanBeRecord")
-@AllArgsConstructor
-public class ReceiptServiceImpl implements ReceiptService {
-
-    private final WebClient webClient;
-
-    private final String apiURL;
+public record ReceiptServiceImpl(WebClient webClient, String apiReceiptURL) implements ReceiptService {
 
     @SneakyThrows
     @Override
@@ -31,8 +25,20 @@ public class ReceiptServiceImpl implements ReceiptService {
 
         return webClient
                 .get()
-                .uri(URIBuilder.buildURI(apiURL, "/api/v1/ingredients", queryParams))
+                .uri(URIBuilder.buildURI(apiReceiptURL, "/api/v1/ingredients", queryParams))
                 .retrieve()
                 .bodyToMono(IngredientMatch.class);
+    }
+
+    @Override
+    public Mono<ReceiptPresentationMatch> getReceiptPresentations(@NonNull List<String> ingredients) {
+        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
+        queryParams.put("ingredients", ingredients);
+
+        return webClient
+                .get()
+                .uri(URIBuilder.buildURI(apiReceiptURL, "/api/v1/receipts/presentations", queryParams))
+                .retrieve()
+                .bodyToMono(ReceiptPresentationMatch.class);
     }
 }

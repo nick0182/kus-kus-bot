@@ -1,11 +1,14 @@
 package com.shaidulin.kuskusbot.service.cache.impl;
 
-import com.shaidulin.kuskusbot.dto.IngredientValue;
-import com.shaidulin.kuskusbot.service.cache.LettuceCacheService;
+import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
+import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Permission;
-import io.lettuce.core.*;
+import com.shaidulin.kuskusbot.util.ImageType;
+import io.lettuce.core.KeyScanCursor;
+import io.lettuce.core.ScanArgs;
+import io.lettuce.core.ScanCursor;
+import io.lettuce.core.ScoredValue;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
-import lombok.AllArgsConstructor;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 
@@ -15,11 +18,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("ClassCanBeRecord")
-@AllArgsConstructor
-public class LettuceCacheServiceImpl implements LettuceCacheService {
-
-    private final RedisReactiveCommands<String, String> redisReactiveCommands;
+public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redisReactiveCommands)
+        implements StringCacheService {
 
     @Override
     public Mono<Boolean> checkPermission(String userId, Permission permission) {
@@ -56,7 +56,6 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
     @Override
     public Mono<Boolean> storeIngredientSuggestions(String userId, Set<IngredientValue> ingredients) {
         String ingredientSuggestionsKey = composeKey(userId, "suggestions");
-        //noinspection RedundantCast
         return redisReactiveCommands
                 .multi()
                 .doOnSuccess(ignored -> redisReactiveCommands.del(ingredientSuggestionsKey).subscribe())
@@ -65,12 +64,12 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                                 .zadd(ingredientSuggestionsKey,
                                         ingredients
                                                 .stream()
-                                                .map(ingredient -> ScoredValue.just(ingredient.getCount(), ingredient.getName()))
+                                                .map(ingredient -> ScoredValue.just(ingredient.count(), ingredient.name()))
                                                 .<ScoredValue<String>>toArray(ScoredValue[]::new))
                                 .subscribe())
                 .doOnSuccess(ignored -> modifyPermission(userId, "01").subscribe())
                 .then(redisReactiveCommands.exec())
-                .map(transactionResult -> !((TransactionResult) transactionResult).wasDiscarded());
+                .map(transactionResult -> !transactionResult.wasDiscarded());
     }
 
     @Override
@@ -105,11 +104,21 @@ public class LettuceCacheServiceImpl implements LettuceCacheService {
                 .defaultIfEmpty(Collections.emptyList());
     }
 
+    @Override
+    public Mono<String> getImage(String id, ImageType type) {
+        String key = type.equals(ImageType.MAIN) ? composeMainImageKey(id) : null;
+        return redisReactiveCommands.get(key);
+    }
+
     private Mono<String> modifyPermission(String userId, String permissionString) {
         return redisReactiveCommands.set(composeKey(userId, "permissions"), permissionString);
     }
 
     private String composeKey(String userId, String suffix) {
         return String.join(":", userId, suffix);
+    }
+
+    private String composeMainImageKey(String id) {
+        return String.join(":", "image", id);
     }
 }

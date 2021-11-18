@@ -1,10 +1,13 @@
 package com.shaidulin.kuskusbot.util;
 
-import com.shaidulin.kuskusbot.dto.IngredientValue;
+import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.util.*;
+
+import static com.shaidulin.kuskusbot.util.ButtonConstants.SHOW_RECEIPT_INGREDIENTS;
 
 public class KeyboardCreator {
 
@@ -20,9 +23,26 @@ public class KeyboardCreator {
                 .skip(shownCount)
                 .limit(pageSize)
                 .forEach(ingredient -> buttons.add(
-                        Collections.singletonList(createButton(createButtonText(ingredient), ingredient.getName()))));
+                        Collections.singletonList(createButton(createButtonText(ingredient), ingredient.name()))));
 
         createNavigationPanelRow(page, ingredients.size() > shownCount + pageSize).ifPresent(buttons::add);
+
+        return InlineKeyboardMarkup
+                .builder()
+                .keyboard(buttons)
+                .build();
+    }
+
+    public static InlineKeyboardMarkup createReceiptKeyboard(List<ReceiptPresentationValue> receipts, int page) {
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+
+        final int pageSize = 1;
+
+        long shownCount = (long) page * pageSize;
+
+        buttons.add(Collections.singletonList(createButton(SHOW_RECEIPT_INGREDIENTS, SHOW_RECEIPT_INGREDIENTS)));
+
+        createNavigationPanelRow(page, receipts.size() > shownCount + pageSize).ifPresent(buttons::add);
 
         return InlineKeyboardMarkup
                 .builder()
@@ -39,7 +59,7 @@ public class KeyboardCreator {
     }
 
     private static String createButtonText(IngredientValue ingredient) {
-        return String.join(" - ", ingredient.getName(), String.valueOf(ingredient.getCount()));
+        return String.join(" - ", ingredient.name(), String.valueOf(ingredient.count()));
     }
 
     private static Optional<List<InlineKeyboardButton>> createNavigationPanelRow(int page, boolean hasMore) {

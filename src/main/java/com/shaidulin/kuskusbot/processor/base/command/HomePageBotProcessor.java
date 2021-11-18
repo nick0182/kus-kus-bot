@@ -1,25 +1,21 @@
-package com.shaidulin.kuskusbot.processor.command;
+package com.shaidulin.kuskusbot.processor.base.command;
 
-import com.shaidulin.kuskusbot.processor.BotProcessor;
-import com.shaidulin.kuskusbot.service.cache.LettuceCacheService;
-import com.shaidulin.kuskusbot.update.UpdateKey;
+import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
+import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.util.ButtonConstants;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import reactor.core.publisher.Mono;
 
-public class HomePageBotProcessor extends BotProcessor {
-
-    public HomePageBotProcessor(LettuceCacheService lettuceCacheService) {
-        super(lettuceCacheService);
-    }
+public record HomePageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     @Override
     public Mono<SendMessage> process(Update update) {
         User user = update.getMessage().getFrom();
         String userId = user.getId().toString();
-        return lettuceCacheService
+        return cacheService
                 .prepareUserCache(userId)
                 .map(ignored -> SendMessage
                         .builder()
@@ -31,7 +27,7 @@ public class HomePageBotProcessor extends BotProcessor {
     }
 
     @Override
-    public UpdateKey getKey() {
-        return UpdateKey.HOME_PAGE;
+    public Router.Type getType() {
+        return Router.Type.HOME_PAGE;
     }
 }

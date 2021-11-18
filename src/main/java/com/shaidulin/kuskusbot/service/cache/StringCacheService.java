@@ -1,14 +1,15 @@
 package com.shaidulin.kuskusbot.service.cache;
 
-import com.shaidulin.kuskusbot.dto.IngredientValue;
+import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
 import com.shaidulin.kuskusbot.update.Permission;
+import com.shaidulin.kuskusbot.util.ImageType;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-public interface LettuceCacheService {
+public interface StringCacheService {
 
     Mono<Boolean> checkPermission(String userId, Permission permission);
 
@@ -23,4 +24,6 @@ public interface LettuceCacheService {
     Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId);
 
     Mono<List<String>> getIngredients(String userId);
+
+    Mono<String> getImage(String id, ImageType type);
 }

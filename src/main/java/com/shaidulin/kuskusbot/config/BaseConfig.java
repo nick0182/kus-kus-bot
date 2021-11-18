@@ -1,19 +1,28 @@
 package com.shaidulin.kuskusbot.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaidulin.kuskusbot.ReceiptBot;
-import com.shaidulin.kuskusbot.processor.BotProcessor;
-import com.shaidulin.kuskusbot.processor.callback.IngredientSelectionBotProcessor;
-import com.shaidulin.kuskusbot.processor.callback.IngredientsPageBotProcessor;
-import com.shaidulin.kuskusbot.processor.command.HomePageBotProcessor;
-import com.shaidulin.kuskusbot.processor.callback.IngredientSearchPageBotProcessor;
-import com.shaidulin.kuskusbot.processor.text.IngredientSearchBotProcessor;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
+import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.callback.IngredientSearchPageBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.callback.IngredientSelectionBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.callback.IngredientsPageBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.ImageBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.callback.ReceiptPresentationBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.command.HomePageBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.text.IngredientSearchBotProcessor;
+import com.shaidulin.kuskusbot.service.api.ImageService;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
+import com.shaidulin.kuskusbot.service.api.impl.ImageServiceImpl;
 import com.shaidulin.kuskusbot.service.api.impl.ReceiptServiceImpl;
-import com.shaidulin.kuskusbot.service.cache.LettuceCacheService;
-import com.shaidulin.kuskusbot.service.cache.impl.LettuceCacheServiceImpl;
-import com.shaidulin.kuskusbot.update.Authorizer;
+import com.shaidulin.kuskusbot.service.cache.ReceiptPresentationCacheService;
+import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.service.cache.codec.ReceiptPresentationCodec;
+import com.shaidulin.kuskusbot.service.cache.impl.ReceiptPresentationCacheServiceImpl;
+import com.shaidulin.kuskusbot.service.cache.impl.StringCacheServiceImpl;
+import com.shaidulin.kuskusbot.update.RouterMapper;
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
+import io.lettuce.core.codec.RedisCodec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,65 +40,86 @@ public class BaseConfig {
     @Value("${bot.token}")
     private String token;
 
-    @Value("${spring.redis.host}")
-    protected String redisHost;
-
     @Value("${api.receipt.url}")
-    private String apiURL;
+    private String apiReceiptURL;
+
+    @Value("${api.image.url}")
+    private String apiImageURL;
 
     @Bean
-    WebClient webClient() {
-        return WebClient.builder().build();
+    StringCacheService stringCacheService(RedisClient redisClient) {
+        return new StringCacheServiceImpl(redisClient.connect().reactive());
+    }
+
+    @Bean
+    RedisCodec<String, ReceiptPresentationValue> receiptPresentationCodec(ObjectMapper objectMapper) {
+        return new ReceiptPresentationCodec(objectMapper);
+    }
+
+    @Bean
+    ReceiptPresentationCacheService receiptPresentationCacheService(RedisClient redisClient,
+                                                                    RedisCodec<String, ReceiptPresentationValue> codec) {
+        return new ReceiptPresentationCacheServiceImpl(redisClient.connect(codec).reactive());
     }
 
     @Bean
     ReceiptService receiptService(WebClient webClient) {
-        return new ReceiptServiceImpl(webClient, apiURL);
+        return new ReceiptServiceImpl(webClient, apiReceiptURL);
     }
 
     @Bean
-    RedisClient redisClient() {
-        return RedisClient.create(RedisURI.builder().withHost(redisHost).build());
+    ImageService imageService(WebClient webClient) {
+        return new ImageServiceImpl(webClient, apiImageURL);
+    }
+
+    // ----------------------- base processors ---------------------------------------
+
+    @Bean
+    BaseBotProcessor homePageBotProcessor(StringCacheService stringCacheService) {
+        return new HomePageBotProcessor(stringCacheService);
     }
 
     @Bean
-    LettuceCacheService lettuceCacheService(RedisClient redisClient) {
-        return new LettuceCacheServiceImpl(redisClient.connect().reactive());
+    BaseBotProcessor ingredientSearchPageBotProcessor(StringCacheService stringCacheService) {
+        return new IngredientSearchPageBotProcessor(stringCacheService);
     }
 
     @Bean
-    BotProcessor homePageBotProcessor(LettuceCacheService lettuceCacheService) {
-        return new HomePageBotProcessor(lettuceCacheService);
+    BaseBotProcessor ingredientSearchBotProcessor(StringCacheService stringCacheService, ReceiptService receiptService) {
+        return new IngredientSearchBotProcessor(stringCacheService, receiptService);
     }
 
     @Bean
-    BotProcessor ingredientSearchPageBotProcessor(LettuceCacheService lettuceCacheService) {
-        return new IngredientSearchPageBotProcessor(lettuceCacheService);
+    BaseBotProcessor ingredientSelectionBotProcessor(StringCacheService stringCacheService) {
+        return new IngredientSelectionBotProcessor(stringCacheService);
     }
 
     @Bean
-    BotProcessor ingredientSearchBotProcessor(LettuceCacheService lettuceCacheService, ReceiptService receiptService) {
-        return new IngredientSearchBotProcessor(lettuceCacheService, receiptService);
+    BaseBotProcessor ingredientsPageBotProcessor(StringCacheService stringCacheService) {
+        return new IngredientsPageBotProcessor(stringCacheService);
+    }
+
+    // ----------------------- image processors ---------------------------------------
+
+    @Bean
+    ImageBotProcessor receiptPresentationBotProcessor(StringCacheService stringCacheService,
+                                                      ReceiptPresentationCacheService receiptPresentationCacheService,
+                                                      ReceiptService receiptService,
+                                                      ImageService imageService) {
+        return new ReceiptPresentationBotProcessor(stringCacheService,
+                receiptPresentationCacheService, receiptService, imageService);
     }
 
     @Bean
-    BotProcessor ingredientSelectionBotProcessor(LettuceCacheService lettuceCacheService) {
-        return new IngredientSelectionBotProcessor(lettuceCacheService);
+    RouterMapper authorizer(StringCacheService stringCacheService) {
+        return new RouterMapper(stringCacheService);
     }
 
     @Bean
-    BotProcessor ingredientsPageBotProcessor(LettuceCacheService lettuceCacheService) {
-        return new IngredientsPageBotProcessor(lettuceCacheService);
-    }
-
-    @Bean
-    Authorizer authorizer(LettuceCacheService lettuceCacheService) {
-        return new Authorizer(lettuceCacheService);
-    }
-
-    @Bean
-    LongPollingBot receiptBot(Authorizer authorizer, List<BotProcessor> botProcessorList) {
-        return new ReceiptBot(authorizer, botProcessorList) {
+    LongPollingBot receiptBot(RouterMapper routerMapper,
+                              List<BaseBotProcessor> baseBotProcessorList,
+                              List<ImageBotProcessor> imageBotProcessorList) {
+        return new ReceiptBot(routerMapper, baseBotProcessorList, imageBotProcessorList) {
             @Override
             public String getBotUsername() {
                 return username;

@@ -16,6 +16,8 @@ public final class ButtonConstants {
 
     public static final String START_SEARCH = "Начать поиск";
 
+    public static final String SHOW_RECEIPT_INGREDIENTS = "Показать все ингредиенты";
+
     public static final InlineKeyboardMarkup startSearchKeyboard;
 
     public static final InlineKeyboardMarkup oneOptionChoiceKeyboard;
