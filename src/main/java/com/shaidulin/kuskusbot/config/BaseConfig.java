@@ -6,11 +6,11 @@ import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientSearchPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientSelectionBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.callback.IngredientsPageBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.callback.IngredientsPaginatedBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.ImageBotProcessor;
-import com.shaidulin.kuskusbot.processor.image.callback.ReceiptPresentationBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.callback.ReceiptPresentationPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.command.HomePageBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.text.IngredientSearchBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.text.IngredientsPageBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.api.impl.ImageServiceImpl;
@@ -85,8 +85,8 @@ public class BaseConfig {
     }
 
     @Bean
-    BaseBotProcessor ingredientSearchBotProcessor(StringCacheService stringCacheService, ReceiptService receiptService) {
-        return new IngredientSearchBotProcessor(stringCacheService, receiptService);
+    BaseBotProcessor ingredientsPageBotProcessor(StringCacheService stringCacheService, ReceiptService receiptService) {
+        return new IngredientsPageBotProcessor(stringCacheService, receiptService);
     }
 
     @Bean
@@ -95,32 +95,31 @@ public class BaseConfig {
     }
 
     @Bean
-    BaseBotProcessor ingredientsPageBotProcessor(StringCacheService stringCacheService) {
-        return new IngredientsPageBotProcessor(stringCacheService);
+    BaseBotProcessor ingredientsPaginatedBotProcessor(StringCacheService stringCacheService) {
+        return new IngredientsPaginatedBotProcessor(stringCacheService);
     }
 
     // ----------------------- image processors ---------------------------------------
 
     @Bean
-    ImageBotProcessor receiptPresentationBotProcessor(StringCacheService stringCacheService,
-                                                      ReceiptPresentationCacheService receiptPresentationCacheService,
-                                                      ReceiptService receiptService,
-                                                      ImageService imageService) {
-        return new ReceiptPresentationBotProcessor(stringCacheService,
-                receiptPresentationCacheService, receiptService, imageService);
+    ImageBotProcessor receiptPresentationPageBotProcessor(StringCacheService stringCacheService,
+                                                          ReceiptPresentationCacheService receiptPresentationCacheService,
+                                                          ReceiptService receiptService,
+                                                          ImageService imageService) {
+        return new ReceiptPresentationPageBotProcessor(stringCacheService, receiptPresentationCacheService,
+                receiptService, imageService);
     }
 
     @Bean
-    RouterMapper authorizer(StringCacheService stringCacheService) {
+    RouterMapper routerMapper(StringCacheService stringCacheService) {
         return new RouterMapper(stringCacheService);
     }
 
     @Bean
     LongPollingBot receiptBot(RouterMapper routerMapper,
-                              StringCacheService stringCacheService,
                               List<BaseBotProcessor> baseBotProcessorList,
                               List<ImageBotProcessor> imageBotProcessorList) {
-        return new ReceiptBot(routerMapper, stringCacheService, baseBotProcessorList, imageBotProcessorList) {
+        return new ReceiptBot(routerMapper, baseBotProcessorList, imageBotProcessorList) {
             @Override
             public String getBotUsername() {
                 return username;

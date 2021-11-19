@@ -9,6 +9,9 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import reactor.core.publisher.Mono;
 
+/**
+ * Home page
+ */
 public record HomePageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     @Override

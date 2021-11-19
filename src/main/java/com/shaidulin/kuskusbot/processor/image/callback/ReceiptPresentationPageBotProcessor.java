@@ -26,11 +26,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
+/**
+ * Shows the first page of receipt presentation
+ */
 @Slf4j
-public record ReceiptPresentationBotProcessor(StringCacheService stringCacheService,
-                                              ReceiptPresentationCacheService receiptPresentationCacheService,
-                                              ReceiptService receiptService,
-                                              ImageService imageService) implements ImageBotProcessor {
+public record ReceiptPresentationPageBotProcessor(StringCacheService stringCacheService,
+                                                  ReceiptPresentationCacheService receiptPresentationCacheService,
+                                                  ReceiptService receiptService,
+                                                  ImageService imageService) implements ImageBotProcessor {
 
     private static final Locale RUSSIAN = new Locale.Builder().setLanguage("ru").setRegion("RU").build();
 
@@ -104,6 +107,6 @@ public record ReceiptPresentationBotProcessor(StringCacheService stringCacheServ
 
     @Override
     public Router.Type getType() {
-        return Router.Type.RECEIPTS_PAGE;
+        return Router.Type.RECEIPT_PRESENTATION_PAGE;
     }
 }

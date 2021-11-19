@@ -8,10 +8,13 @@ public record Router(Method method, Type type) {
 
     public enum Type {
         HOME_PAGE,
-        SEARCH_PAGE,
-        USER_TEXT,
-        USER_INGREDIENTS_PAGE,
-        USER_INGREDIENT_SELECTION,
-        RECEIPTS_PAGE
+
+        INGREDIENT_SEARCH_PAGE,
+        INGREDIENTS_PAGE,
+        INGREDIENTS_PAGINATED,
+        INGREDIENT_SELECTION,
+
+        RECEIPT_PRESENTATION_PAGE,
+        RECEIPT_PRESENTATION_PAGINATED
     }
 }

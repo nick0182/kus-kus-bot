@@ -7,7 +7,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 
 import java.util.*;
 
-import static com.shaidulin.kuskusbot.util.ButtonConstants.SHOW_RECEIPT_INGREDIENTS;
+import static com.shaidulin.kuskusbot.util.ButtonConstants.*;
 
 public class KeyboardCreator {
 
@@ -25,7 +25,8 @@ public class KeyboardCreator {
                 .forEach(ingredient -> buttons.add(
                         Collections.singletonList(createButton(createButtonText(ingredient), ingredient.name()))));
 
-        createNavigationPanelRow(page, ingredients.size() > shownCount + pageSize).ifPresent(buttons::add);
+        createNavigationPanelRow(INGREDIENTS_PAGE_PAYLOAD_IDENTIFIER, page, ingredients.size() > shownCount + pageSize)
+                .ifPresent(buttons::add);
 
         return InlineKeyboardMarkup
                 .builder()
@@ -42,7 +43,8 @@ public class KeyboardCreator {
 
         buttons.add(Collections.singletonList(createButton(SHOW_RECEIPT_INGREDIENTS, SHOW_RECEIPT_INGREDIENTS)));
 
-        createNavigationPanelRow(page, receipts.size() > shownCount + pageSize).ifPresent(buttons::add);
+        createNavigationPanelRow(RECEIPTS_PAGE_PAYLOAD_IDENTIFIER, page, receipts.size() > shownCount + pageSize)
+                .ifPresent(buttons::add);
 
         return InlineKeyboardMarkup
                 .builder()
@@ -58,24 +60,29 @@ public class KeyboardCreator {
                 .build();
     }
 
-    private static String createButtonText(IngredientValue ingredient) {
-        return String.join(" - ", ingredient.name(), String.valueOf(ingredient.count()));
-    }
-
-    private static Optional<List<InlineKeyboardButton>> createNavigationPanelRow(int page, boolean hasMore) {
+    private static Optional<List<InlineKeyboardButton>> createNavigationPanelRow(String payloadIdentifier,
+                                                                                 int page, boolean hasMore) {
         List<InlineKeyboardButton> navigationPanelRow = new ArrayList<>();
 
         Optional<InlineKeyboardButton> toPreviousPageButton = page > 0
-                ? Optional.of(createButton("⬅", String.valueOf(page - 1)))
+                ? Optional.of(createButton("⬅", createPageIdentifier(payloadIdentifier, page - 1)))
                 : Optional.empty();
 
         Optional<InlineKeyboardButton> toNextPageButton = hasMore
-                ? Optional.of(createButton("➡", String.valueOf(page + 1)))
+                ? Optional.of(createButton("➡", createPageIdentifier(payloadIdentifier, page + 1)))
                 : Optional.empty();
 
         toPreviousPageButton.ifPresent(navigationPanelRow::add);
         toNextPageButton.ifPresent(navigationPanelRow::add);
 
         return !navigationPanelRow.isEmpty() ? Optional.of(navigationPanelRow) : Optional.empty();
+    }
+
+    private static String createButtonText(IngredientValue ingredient) {
+        return String.join(" - ", ingredient.name(), String.valueOf(ingredient.count()));
+    }
+
+    private static String createPageIdentifier(String payloadIdentifier, int page) {
+        return String.join("_", payloadIdentifier, String.valueOf(page));
     }
 }

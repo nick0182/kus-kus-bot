@@ -3,19 +3,16 @@ package com.shaidulin.kuskusbot.update;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.util.ButtonConstants;
 import com.shaidulin.kuskusbot.util.CallbackMapper;
-import lombok.AllArgsConstructor;
-import org.apache.commons.lang3.math.NumberUtils;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
 
-import static com.shaidulin.kuskusbot.update.Router.Method.*;
+import static com.shaidulin.kuskusbot.update.Router.Method.BASE;
+import static com.shaidulin.kuskusbot.update.Router.Method.IMAGE;
 import static com.shaidulin.kuskusbot.update.Router.Type.*;
 
-@AllArgsConstructor
-public class RouterMapper {
-
-    private final StringCacheService stringCacheService;
+public record RouterMapper(StringCacheService stringCacheService) {
 
     public Mono<Router> routeIncomingUpdate(Update update) {
         if (update.hasMessage()) {
@@ -27,12 +24,12 @@ public class RouterMapper {
             if (message.isUserMessage() && message.hasText() && !message.getText().equals("")) {
                 return stringCacheService
                         .checkPermission(userId, Permission.MESSAGE)
-                        .map(ignored -> new Router(BASE, USER_TEXT));
+                        .map(ignored -> new Router(BASE, INGREDIENTS_PAGE));
             }
         }
         if (update.hasCallbackQuery()) {
             CallbackMapper.Wrapper callbackWrapper = CallbackMapper.mapCallback(update.getCallbackQuery());
-            Router updateKey = identifyCallbackKey(callbackWrapper.data());
+            Router updateKey = identifyCallbackKey(update.getCallbackQuery());
             return stringCacheService
                     .checkPermission(callbackWrapper.userId(), Permission.CALLBACK)
                     .map(ignored -> updateKey);
@@ -40,15 +37,25 @@ public class RouterMapper {
         return Mono.empty();
     }
 
-    private Router identifyCallbackKey(String callbackData) {
+    private Router identifyCallbackKey(CallbackQuery callbackQuery) {
+        String callbackData = callbackQuery.getData();
         if (callbackData.equals(ButtonConstants.SEARCH_RECEIPTS)) {
-            return new Router(IMAGE, RECEIPTS_PAGE);
-        } else if (callbackData.equals(ButtonConstants.START_SEARCH) || callbackData.equals(ButtonConstants.SEARCH_NEXT_INGREDIENT)) {
-            return new Router(BASE, SEARCH_PAGE);
-        } else if (NumberUtils.isCreatable(callbackData)) {
-            return new Router(BASE, USER_INGREDIENTS_PAGE);
+            return new Router(IMAGE, RECEIPT_PRESENTATION_PAGE);
+        } else if (callbackData.equals(ButtonConstants.START_SEARCH)
+                || callbackData.equals(ButtonConstants.SEARCH_NEXT_INGREDIENT)) {
+            return new Router(BASE, INGREDIENT_SEARCH_PAGE);
+        } else if (callbackData.startsWith(ButtonConstants.INGREDIENTS_PAGE_PAYLOAD_IDENTIFIER)) {
+            callbackQuery.setData(resolvePage(callbackData));
+            return new Router(BASE, INGREDIENTS_PAGINATED);
+        } else if (callbackData.startsWith(ButtonConstants.RECEIPTS_PAGE_PAYLOAD_IDENTIFIER)) {
+            callbackQuery.setData(resolvePage(callbackData));
+            return new Router(BASE, RECEIPT_PRESENTATION_PAGINATED);
         } else {
-            return new Router(BASE, USER_INGREDIENT_SELECTION);
+            return new Router(BASE, INGREDIENT_SELECTION);
         }
+    }
+
+    private String resolvePage(String callbackData) {
+        return callbackData.split("_")[1];
     }
 }

@@ -18,6 +18,10 @@ public final class ButtonConstants {
 
     public static final String SHOW_RECEIPT_INGREDIENTS = "Показать все ингредиенты";
 
+    public static final String INGREDIENTS_PAGE_PAYLOAD_IDENTIFIER = "Ing";
+
+    public static final String RECEIPTS_PAGE_PAYLOAD_IDENTIFIER = "Rec";
+
     public static final InlineKeyboardMarkup startSearchKeyboard;
 
     public static final InlineKeyboardMarkup oneOptionChoiceKeyboard;

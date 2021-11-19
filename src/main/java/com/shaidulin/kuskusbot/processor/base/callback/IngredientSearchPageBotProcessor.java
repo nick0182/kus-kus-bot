@@ -8,6 +8,9 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
 
+/**
+ * Shows chosen ingredients (if present) and prompts for a new one
+ */
 public record IngredientSearchPageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     @Override
@@ -40,6 +43,6 @@ public record IngredientSearchPageBotProcessor(StringCacheService cacheService) 
 
     @Override
     public Router.Type getType() {
-        return Router.Type.SEARCH_PAGE;
+        return Router.Type.INGREDIENT_SEARCH_PAGE;
     }
 }

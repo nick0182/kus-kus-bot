@@ -9,7 +9,10 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageRe
 import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
 
-public record IngredientsPageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
+/**
+ * Shows a paginated offering of 3 possible ingredients
+ */
+public record IngredientsPaginatedBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     @Override
     public Mono<EditMessageReplyMarkup> process(Update update) {
@@ -28,6 +31,6 @@ public record IngredientsPageBotProcessor(StringCacheService cacheService) imple
 
     @Override
     public Router.Type getType() {
-        return Router.Type.USER_INGREDIENTS_PAGE;
+        return Router.Type.INGREDIENTS_PAGINATED;
     }
 }

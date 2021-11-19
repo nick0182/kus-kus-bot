@@ -2,7 +2,6 @@ package com.shaidulin.kuskusbot;
 
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.ImageBotProcessor;
-import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.update.RouterMapper;
 import com.shaidulin.kuskusbot.util.ImageType;
@@ -17,6 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import reactor.core.publisher.Mono;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -27,18 +27,14 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
     private final RouterMapper routerMapper;
 
-    private final StringCacheService stringCacheService;
-
     private final Map<Router.Type, BaseBotProcessor> baseBotProcessorMap;
 
     private final Map<Router.Type, ImageBotProcessor> imageBotProcessorMap;
 
     public ReceiptBot(RouterMapper routerMapper,
-                      StringCacheService stringCacheService,
                       List<BaseBotProcessor> baseBotProcessorList,
                       List<ImageBotProcessor> imageBotProcessorList) {
         this.routerMapper = routerMapper;
-        this.stringCacheService = stringCacheService;
         baseBotProcessorMap = baseBotProcessorList
                 .stream()
                 .collect(Collectors.toMap(BaseBotProcessor::getType, Function.identity()));
@@ -89,7 +85,7 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
                         if (isNewImage) {
                             log.debug("Storing new image in cache with fileId: {} with name: {}", telegramFileId, imageName);
-                            stringCacheService.storeImage(imageName, ImageType.MAIN, telegramFileId).subscribe();
+                            routerMapper.stringCacheService().storeImage(imageName, ImageType.MAIN, telegramFileId).subscribe();
                         }
                     } catch (TelegramApiException e) {
                         log.error("Failed to execute Telegram API method", e);

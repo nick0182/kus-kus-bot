@@ -9,6 +9,11 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
 
+/**
+ * Shows chosen ingredients and offers:
+ * 1. to start searching for receipts
+ * 2. to start searching for receipts OR to add another ingredient
+ */
 public record IngredientSelectionBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     @Override
@@ -31,6 +36,6 @@ public record IngredientSelectionBotProcessor(StringCacheService cacheService) i
 
     @Override
     public Router.Type getType() {
-        return Router.Type.USER_INGREDIENT_SELECTION;
+        return Router.Type.INGREDIENT_SELECTION;
     }
 }

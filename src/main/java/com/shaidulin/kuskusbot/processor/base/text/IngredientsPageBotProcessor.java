@@ -9,7 +9,10 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
 
-public record IngredientSearchBotProcessor(StringCacheService cacheService, ReceiptService receiptService)
+/**
+ * Shows the first page's offering of 3 possible ingredients
+ */
+public record IngredientsPageBotProcessor(StringCacheService cacheService, ReceiptService receiptService)
         implements BaseBotProcessor {
 
     @Override
@@ -46,6 +49,6 @@ public record IngredientSearchBotProcessor(StringCacheService cacheService, Rece
 
     @Override
     public Router.Type getType() {
-        return Router.Type.USER_TEXT;
+        return Router.Type.INGREDIENTS_PAGE;
     }
 }
