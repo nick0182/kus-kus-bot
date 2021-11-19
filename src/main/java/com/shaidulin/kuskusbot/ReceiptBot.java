@@ -2,13 +2,16 @@ package com.shaidulin.kuskusbot;
 
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.ImageBotProcessor;
+import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.update.RouterMapper;
+import com.shaidulin.kuskusbot.util.ImageType;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -24,19 +27,24 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
     private final RouterMapper routerMapper;
 
-    private final MethodExecutor<BotApiMethod<?>> baseMethodExecutor;
+    private final StringCacheService stringCacheService;
 
-    private final MethodExecutor<SendPhoto> imageMethodExecutor;
+    private final Map<Router.Type, BaseBotProcessor> baseBotProcessorMap;
 
-    public ReceiptBot(RouterMapper routerMapper, List<BaseBotProcessor> baseBotProcessorList,
+    private final Map<Router.Type, ImageBotProcessor> imageBotProcessorMap;
+
+    public ReceiptBot(RouterMapper routerMapper,
+                      StringCacheService stringCacheService,
+                      List<BaseBotProcessor> baseBotProcessorList,
                       List<ImageBotProcessor> imageBotProcessorList) {
         this.routerMapper = routerMapper;
-        baseMethodExecutor = new BaseMethodExecutor(baseBotProcessorList
+        this.stringCacheService = stringCacheService;
+        baseBotProcessorMap = baseBotProcessorList
                 .stream()
-                .collect(Collectors.toMap(BaseBotProcessor::getType, Function.identity())));
-        imageMethodExecutor = new ImageMethodExecutor(imageBotProcessorList
+                .collect(Collectors.toMap(BaseBotProcessor::getType, Function.identity()));
+        imageBotProcessorMap = imageBotProcessorList
                 .stream()
-                .collect(Collectors.toMap(ImageBotProcessor::getType, Function.identity())));
+                .collect(Collectors.toMap(ImageBotProcessor::getType, Function.identity()));
     }
 
     @Override
@@ -45,78 +53,60 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
         routerMapper
                 .routeIncomingUpdate(update)
                 .flatMap(router -> switch (router.method()) {
-                    case BASE -> baseMethodExecutor.executeMethod(router.type(), update);
-                    case IMAGE -> imageMethodExecutor.executeMethod(router.type(), update);
+                    case BASE -> executeBaseMethod(router.type(), update);
+                    case IMAGE -> executeImageMethod(router.type(), update);
                 })
                 .doOnError(error -> log.error("Error occurred during process of update: " + update, error))
                 .subscribe();
     }
 
-    private interface MethodExecutor<T> {
-
-        @SuppressWarnings("UnusedReturnValue")
-        Mono<? extends T> executeMethod(Router.Type type, Update update);
+    private Mono<? extends BotApiMethod<?>> executeBaseMethod(Router.Type type, Update update) {
+        return baseBotProcessorMap.get(type)
+                .process(update)
+                .doOnSuccess(this::logIfNullMethod)
+                .doOnNext(botApiMethod -> {
+                    try {
+                        execute(botApiMethod);
+                    } catch (TelegramApiException e) {
+                        log.error("Failed to execute Telegram API method", e);
+                    }
+                });
     }
 
-    private class BaseMethodExecutor implements MethodExecutor<BotApiMethod<?>> {
+    private Mono<? extends SendPhoto> executeImageMethod(Router.Type type, Update update) {
+        return imageBotProcessorMap.get(type)
+                .process(update)
+                .doOnSuccess(this::logIfNullMethod)
+                .doOnNext(sendPhoto -> {
+                    try {
+                        execute(deletePreviousMessage(update.getCallbackQuery().getMessage()));
 
-        private final Map<Router.Type, BaseBotProcessor> baseBotProcessorMap;
+                        InputFile imageToSend = sendPhoto.getPhoto();
+                        String imageName = imageToSend.getMediaName();
+                        boolean isNewImage = imageToSend.isNew();
 
-        private BaseMethodExecutor(Map<Router.Type, BaseBotProcessor> baseBotProcessorMap) {
-            this.baseBotProcessorMap = baseBotProcessorMap;
-        }
+                        String telegramFileId = execute(sendPhoto).getPhoto().get(0).getFileId();
 
-        @Override
-        public Mono<? extends BotApiMethod<?>> executeMethod(Router.Type type, Update update) {
-            return baseBotProcessorMap.get(type)
-                    .process(update)
-                    .doOnSuccess(method -> {
-                        if (method == null) {
-                            log.debug("No response was constructed and sent because BotApiMethod is null");
+                        if (isNewImage) {
+                            log.debug("Storing new image in cache with fileId: {} with name: {}", telegramFileId, imageName);
+                            stringCacheService.storeImage(imageName, ImageType.MAIN, telegramFileId).subscribe();
                         }
-                    })
-                    .doOnNext(botApiMethod -> {
-                        try {
-                            execute(botApiMethod);
-                        } catch (TelegramApiException e) {
-                            log.error("Failed to execute Telegram API method", e);
-                        }
-                    });
+                    } catch (TelegramApiException e) {
+                        log.error("Failed to execute Telegram API method", e);
+                    }
+                });
+    }
+
+    private void logIfNullMethod(Object method) {
+        if (method == null) {
+            log.debug("No response was constructed and sent because BotApiMethod is null");
         }
     }
 
-    private class ImageMethodExecutor implements MethodExecutor<SendPhoto> {
-
-        private final Map<Router.Type, ImageBotProcessor> imageBotProcessorMap;
-
-        private ImageMethodExecutor(Map<Router.Type, ImageBotProcessor> imageBotProcessorMap) {
-            this.imageBotProcessorMap = imageBotProcessorMap;
-        }
-
-        @Override
-        public Mono<? extends SendPhoto> executeMethod(Router.Type type, Update update) {
-            return imageBotProcessorMap.get(type)
-                    .process(update)
-                    .doOnSuccess(method -> {
-                        if (method == null) {
-                            log.debug("No response was constructed and sent because BotApiMethod is null");
-                        }
-                    })
-                    .doOnNext(botApiMethod -> {
-                        try {
-                            execute(deletePreviousMessage(update.getCallbackQuery().getMessage()));
-                            execute(botApiMethod);
-                        } catch (TelegramApiException e) {
-                            log.error("Failed to execute Telegram API method", e);
-                        }
-                    });
-        }
-
-        private DeleteMessage deletePreviousMessage(Message message) {
-            return DeleteMessage.builder()
-                    .messageId(message.getMessageId())
-                    .chatId(message.getChatId().toString())
-                    .build();
-        }
+    private DeleteMessage deletePreviousMessage(Message message) {
+        return DeleteMessage.builder()
+                .messageId(message.getMessageId())
+                .chatId(message.getChatId().toString())
+                .build();
     }
 }

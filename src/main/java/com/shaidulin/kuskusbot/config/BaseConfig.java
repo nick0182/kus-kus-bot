@@ -117,9 +117,10 @@ public class BaseConfig {
 
     @Bean
     LongPollingBot receiptBot(RouterMapper routerMapper,
+                              StringCacheService stringCacheService,
                               List<BaseBotProcessor> baseBotProcessorList,
                               List<ImageBotProcessor> imageBotProcessorList) {
-        return new ReceiptBot(routerMapper, baseBotProcessorList, imageBotProcessorList) {
+        return new ReceiptBot(routerMapper, stringCacheService, baseBotProcessorList, imageBotProcessorList) {
             @Override
             public String getBotUsername() {
                 return username;

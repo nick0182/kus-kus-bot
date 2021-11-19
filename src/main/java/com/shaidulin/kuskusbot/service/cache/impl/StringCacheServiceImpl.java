@@ -110,6 +110,12 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
         return redisReactiveCommands.get(key);
     }
 
+    @Override
+    public Mono<String> storeImage(String id, ImageType type, String telegramFileId) {
+        String key = type.equals(ImageType.MAIN) ? composeMainImageKey(id) : null;
+        return redisReactiveCommands.set(key, telegramFileId);
+    }
+
     private Mono<String> modifyPermission(String userId, String permissionString) {
         return redisReactiveCommands.set(composeKey(userId, "permissions"), permissionString);
     }

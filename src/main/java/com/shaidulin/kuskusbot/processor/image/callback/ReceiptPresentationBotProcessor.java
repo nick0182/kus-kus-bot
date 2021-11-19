@@ -71,13 +71,14 @@ public record ReceiptPresentationBotProcessor(StringCacheService stringCacheServ
     private SendPhoto compileMessage(String cachedImage, byte[] imageBytes, String chatId,
                                      ReceiptPresentationValue receiptPresentation, InlineKeyboardMarkup keyboard) {
         boolean isNewMedia = Objects.isNull(cachedImage);
+        String imageName = String.valueOf(receiptPresentation.queryParam());
 
         InputFile photo = new InputFile();
         if (isNewMedia) {
-            log.debug("Compiling photo from resource with length: {}", imageBytes.length);
-            photo.setMedia(new ByteArrayResource(imageBytes).getInputStream(), String.valueOf(receiptPresentation.queryParam()));
+            log.debug("Compiling photo from resource with length: {} and name: {}", imageBytes.length, imageName);
+            photo.setMedia(new ByteArrayResource(imageBytes).getInputStream(), imageName);
         } else {
-            log.debug("Compiling photo from cache");
+            log.debug("Compiling photo from cache with name: {}", imageName);
             photo.setMedia(cachedImage);
         }
 

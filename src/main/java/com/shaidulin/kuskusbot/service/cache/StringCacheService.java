@@ -26,4 +26,6 @@ public interface StringCacheService {
     Mono<List<String>> getIngredients(String userId);
 
     Mono<String> getImage(String id, ImageType type);
+
+    Mono<String> storeImage(String id, ImageType type, String telegramFileId);
 }
