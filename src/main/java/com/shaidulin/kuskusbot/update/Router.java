@@ -3,7 +3,7 @@ package com.shaidulin.kuskusbot.update;
 public record Router(Method method, Type type) {
 
     public enum Method {
-        BASE, IMAGE
+        BASE, IMAGE_SEND, IMAGE_EDIT
     }
 
     public enum Type {

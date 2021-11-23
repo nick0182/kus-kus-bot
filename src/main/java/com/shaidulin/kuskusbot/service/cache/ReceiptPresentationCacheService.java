@@ -8,4 +8,6 @@ import java.util.List;
 public interface ReceiptPresentationCacheService {
 
     Mono<Boolean> storeReceiptPresentations(String userId, List<ReceiptPresentationValue> receipts);
+
+    Mono<List<ReceiptPresentationValue>> getReceiptPresentations(String userId);
 }

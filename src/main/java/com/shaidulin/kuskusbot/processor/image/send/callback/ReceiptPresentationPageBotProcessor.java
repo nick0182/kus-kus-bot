@@ -1,8 +1,8 @@
-package com.shaidulin.kuskusbot.processor.image.callback;
+package com.shaidulin.kuskusbot.processor.image.send.callback;
 
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
-import com.shaidulin.kuskusbot.processor.image.ImageBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.cache.ReceiptPresentationCacheService;
@@ -18,12 +18,9 @@ import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.threeten.extra.AmountFormats;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -33,11 +30,7 @@ import java.util.Objects;
 public record ReceiptPresentationPageBotProcessor(StringCacheService stringCacheService,
                                                   ReceiptPresentationCacheService receiptPresentationCacheService,
                                                   ReceiptService receiptService,
-                                                  ImageService imageService) implements ImageBotProcessor {
-
-    private static final Locale RUSSIAN = new Locale.Builder().setLanguage("ru").setRegion("RU").build();
-
-    private static final String NOT_DEFINED = "Не указано";
+                                                  ImageService imageService) implements ImageSendBotProcessor {
 
     @Override
     public Mono<? extends SendPhoto> process(Update update) {
@@ -48,8 +41,7 @@ public record ReceiptPresentationPageBotProcessor(StringCacheService stringCache
                 .map(ReceiptPresentationMatch::receipts)
                 .filterWhen(receiptPresentations -> receiptPresentationCacheService()
                         .storeReceiptPresentations(callbackWrapper.userId(), receiptPresentations))
-                .flatMap(receiptPresentations1 ->
-                        provideMessage(receiptPresentations1, callbackWrapper.chatId()));
+                .flatMap(receiptPresentations -> provideMessage(receiptPresentations, callbackWrapper.chatId()));
     }
 
     private Mono<SendPhoto> provideMessage(List<ReceiptPresentationValue> receiptPresentations, String chatId) {
@@ -88,21 +80,9 @@ public record ReceiptPresentationPageBotProcessor(StringCacheService stringCache
         return SendPhoto.builder()
                 .chatId(chatId)
                 .photo(photo)
-                .caption(createPhotoCaption(receiptPresentation))
+                .caption(imageService.createPhotoCaption(receiptPresentation))
                 .replyMarkup(keyboard)
                 .build();
-    }
-
-    private String createPhotoCaption(ReceiptPresentationValue receiptPresentation) {
-        Duration cookTime = receiptPresentation.cookTime();
-        String cookTimeString = cookTime != null ? AmountFormats.wordBased(cookTime, RUSSIAN) : NOT_DEFINED;
-
-        int portions = receiptPresentation.portions();
-        String portionsString = portions != 0 ? String.valueOf(portions) : NOT_DEFINED;
-
-        return "\uD83C\uDF72 " + receiptPresentation.name() + "\n" +
-                "⏱ " + cookTimeString + "\n" +
-                "Количество порций " + portionsString;
     }
 
     @Override

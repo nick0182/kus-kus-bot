@@ -8,8 +8,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
 
-import static com.shaidulin.kuskusbot.update.Router.Method.BASE;
-import static com.shaidulin.kuskusbot.update.Router.Method.IMAGE;
+import static com.shaidulin.kuskusbot.update.Router.Method.*;
 import static com.shaidulin.kuskusbot.update.Router.Type.*;
 
 public record RouterMapper(StringCacheService stringCacheService) {
@@ -40,7 +39,7 @@ public record RouterMapper(StringCacheService stringCacheService) {
     private Router identifyCallbackKey(CallbackQuery callbackQuery) {
         String callbackData = callbackQuery.getData();
         if (callbackData.equals(ButtonConstants.SEARCH_RECEIPTS)) {
-            return new Router(IMAGE, RECEIPT_PRESENTATION_PAGE);
+            return new Router(IMAGE_SEND, RECEIPT_PRESENTATION_PAGE);
         } else if (callbackData.equals(ButtonConstants.START_SEARCH)
                 || callbackData.equals(ButtonConstants.SEARCH_NEXT_INGREDIENT)) {
             return new Router(BASE, INGREDIENT_SEARCH_PAGE);
@@ -49,7 +48,7 @@ public record RouterMapper(StringCacheService stringCacheService) {
             return new Router(BASE, INGREDIENTS_PAGINATED);
         } else if (callbackData.startsWith(ButtonConstants.RECEIPTS_PAGE_PAYLOAD_IDENTIFIER)) {
             callbackQuery.setData(resolvePage(callbackData));
-            return new Router(BASE, RECEIPT_PRESENTATION_PAGINATED);
+            return new Router(IMAGE_EDIT, RECEIPT_PRESENTATION_PAGINATED);
         } else {
             return new Router(BASE, INGREDIENT_SELECTION);
         }

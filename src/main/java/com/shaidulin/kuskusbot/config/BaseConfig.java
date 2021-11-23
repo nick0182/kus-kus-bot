@@ -7,8 +7,10 @@ import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientSearchPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientSelectionBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientsPaginatedBotProcessor;
-import com.shaidulin.kuskusbot.processor.image.ImageBotProcessor;
-import com.shaidulin.kuskusbot.processor.image.callback.ReceiptPresentationPageBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.edit.ImageEditBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.edit.callback.ReceiptPresentationPaginatedBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.send.callback.ReceiptPresentationPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.command.HomePageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.text.IngredientsPageBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
@@ -102,12 +104,19 @@ public class BaseConfig {
     // ----------------------- image processors ---------------------------------------
 
     @Bean
-    ImageBotProcessor receiptPresentationPageBotProcessor(StringCacheService stringCacheService,
-                                                          ReceiptPresentationCacheService receiptPresentationCacheService,
-                                                          ReceiptService receiptService,
-                                                          ImageService imageService) {
+    ImageSendBotProcessor receiptPresentationPageBotProcessor(StringCacheService stringCacheService,
+                                                              ReceiptPresentationCacheService receiptPresentationCacheService,
+                                                              ReceiptService receiptService,
+                                                              ImageService imageService) {
         return new ReceiptPresentationPageBotProcessor(stringCacheService, receiptPresentationCacheService,
                 receiptService, imageService);
+    }
+
+    @Bean
+    ImageEditBotProcessor receiptPresentationPaginatedBotProcessor(StringCacheService stringCacheService,
+                                                                   ReceiptPresentationCacheService receiptPresentationCacheService,
+                                                                   ImageService imageService) {
+        return new ReceiptPresentationPaginatedBotProcessor(stringCacheService, receiptPresentationCacheService, imageService);
     }
 
     @Bean
@@ -118,8 +127,9 @@ public class BaseConfig {
     @Bean
     LongPollingBot receiptBot(RouterMapper routerMapper,
                               List<BaseBotProcessor> baseBotProcessorList,
-                              List<ImageBotProcessor> imageBotProcessorList) {
-        return new ReceiptBot(routerMapper, baseBotProcessorList, imageBotProcessorList) {
+                              List<ImageSendBotProcessor> imageSendBotProcessorList,
+                              List<ImageEditBotProcessor> imageEditBotProcessorList) {
+        return new ReceiptBot(routerMapper, baseBotProcessorList, imageSendBotProcessorList, imageEditBotProcessorList) {
             @Override
             public String getBotUsername() {
                 return username;

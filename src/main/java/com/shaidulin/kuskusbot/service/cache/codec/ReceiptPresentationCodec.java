@@ -20,7 +20,9 @@ public record ReceiptPresentationCodec(ObjectMapper objectMapper) implements Red
     @Override
     @SneakyThrows
     public ReceiptPresentationValue decodeValue(ByteBuffer bytes) {
-        return objectMapper.readValue(bytes.array(), ReceiptPresentationValue.class);
+        byte[] array = new byte[bytes.remaining()];
+        bytes.get(array);
+        return objectMapper.readValue(array, ReceiptPresentationValue.class);
     }
 
     @Override

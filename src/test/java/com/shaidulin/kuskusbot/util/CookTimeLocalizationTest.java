@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class CookTypeLocalizationTest {
+public class CookTimeLocalizationTest {
 
     private final Locale russian = new Locale.Builder().setLanguage("ru").setRegion("RU").build();
 

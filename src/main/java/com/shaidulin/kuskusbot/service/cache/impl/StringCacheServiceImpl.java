@@ -1,15 +1,12 @@
 package com.shaidulin.kuskusbot.service.cache.impl;
 
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
+import com.shaidulin.kuskusbot.service.cache.KeyCreator;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Permission;
 import com.shaidulin.kuskusbot.util.ImageType;
-import io.lettuce.core.KeyScanCursor;
-import io.lettuce.core.ScanArgs;
-import io.lettuce.core.ScanCursor;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
-import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 
 import java.util.Collections;
@@ -19,7 +16,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redisReactiveCommands)
-        implements StringCacheService {
+        implements StringCacheService, KeyCreator {
 
     @Override
     public Mono<Boolean> checkPermission(String userId, Permission permission) {
@@ -32,16 +29,16 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
 
     @Override
     public Mono<Boolean> prepareUserCache(String userId) {
+        String[] keysToDelete = new String[]{
+                composeKey(userId, "permissions"),
+                composeKey(userId, "suggestions"),
+                composeKey(userId, "ingredients"),
+                composeKey(userId)
+        };
+
         return redisReactiveCommands
-                .scan(ScanCursor.INITIAL, ScanArgs.Builder.matches(userId + "*").limit(10))
-                .doOnSuccess(ignored -> redisReactiveCommands
-                        .multi()
-                        .subscribe())
-                .filter(keyScanCursor -> !CollectionUtils.isEmpty(keyScanCursor.getKeys()))
-                .map(KeyScanCursor::getKeys)
-                .doOnNext(keys -> redisReactiveCommands
-                        .del(keys.toArray(String[]::new))
-                        .subscribe())
+                .multi()
+                .doOnNext(ignored -> redisReactiveCommands.del(keysToDelete).subscribe())
                 .doOnSuccess(ignored -> modifyPermission(userId, "01").subscribe())
                 .then(redisReactiveCommands.exec())
                 .map(objects -> !objects.wasDiscarded())
@@ -118,13 +115,5 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
 
     private Mono<String> modifyPermission(String userId, String permissionString) {
         return redisReactiveCommands.set(composeKey(userId, "permissions"), permissionString);
-    }
-
-    private String composeKey(String userId, String suffix) {
-        return String.join(":", userId, suffix);
-    }
-
-    private String composeMainImageKey(String id) {
-        return String.join(":", "image", id);
     }
 }
