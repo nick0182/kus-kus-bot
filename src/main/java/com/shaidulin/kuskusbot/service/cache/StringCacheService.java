@@ -1,6 +1,9 @@
 package com.shaidulin.kuskusbot.service.cache;
 
+import com.shaidulin.kuskusbot.dto.receipt.Meta;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.update.Permission;
 import com.shaidulin.kuskusbot.util.ImageType;
 import reactor.core.publisher.Mono;
@@ -28,4 +31,12 @@ public interface StringCacheService {
     Mono<String> getImage(String id, ImageType type);
 
     Mono<String> storeImage(String id, ImageType type, String telegramFileId);
+
+    Mono<Boolean> storeReceiptPresentations(String userId, ReceiptPresentationMatch match);
+
+    Mono<ReceiptPresentationValue> getReceiptPresentation(String userId, int index);
+
+    Mono<Integer> getReceiptPresentationsSize(String userId);
+
+    Mono<Meta> getReceiptPresentationsMeta(String userId);
 }

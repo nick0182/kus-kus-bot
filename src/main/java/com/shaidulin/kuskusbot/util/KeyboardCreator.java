@@ -1,7 +1,6 @@
 package com.shaidulin.kuskusbot.util;
 
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
-import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
@@ -34,16 +33,12 @@ public class KeyboardCreator {
                 .build();
     }
 
-    public static InlineKeyboardMarkup createReceiptKeyboard(List<ReceiptPresentationValue> receipts, int page) {
+    public static InlineKeyboardMarkup createReceiptKeyboard(int page, boolean hasMore) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
-
-        final int pageSize = 1;
-
-        long shownCount = (long) page * pageSize;
 
         buttons.add(Collections.singletonList(createButton(SHOW_RECEIPT_INGREDIENTS, SHOW_RECEIPT_INGREDIENTS)));
 
-        createNavigationPanelRow(RECEIPTS_PAGE_PAYLOAD_IDENTIFIER, page, receipts.size() > shownCount + pageSize)
+        createNavigationPanelRow(RECEIPTS_PAGE_PAYLOAD_IDENTIFIER, page, hasMore)
                 .ifPresent(buttons::add);
 
         return InlineKeyboardMarkup

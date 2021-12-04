@@ -1,8 +1,10 @@
 package com.shaidulin.kuskusbot.service.api.impl;
 
+import com.shaidulin.kuskusbot.dto.receipt.Page;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
+import com.shaidulin.kuskusbot.util.SortType;
 import com.shaidulin.kuskusbot.util.URIBuilder;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -31,9 +33,13 @@ public record ReceiptServiceImpl(WebClient webClient, String apiReceiptURL) impl
     }
 
     @Override
-    public Mono<ReceiptPresentationMatch> getReceiptPresentations(@NonNull List<String> ingredients) {
+    public Mono<ReceiptPresentationMatch> getReceiptPresentations(@NonNull List<String> ingredients,
+                                                                  Page page, @NonNull SortType sortType) {
         MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         queryParams.put("ingredients", ingredients);
+        queryParams.put("page.current", Collections.singletonList(String.valueOf(page.current())));
+        queryParams.put("page.size", Collections.singletonList(String.valueOf(page.size())));
+        queryParams.put("sortType", Collections.singletonList(sortType.name()));
 
         return webClient
                 .get()

@@ -1,16 +1,17 @@
 package com.shaidulin.kuskusbot.processor.image.send.callback;
 
+import com.shaidulin.kuskusbot.dto.receipt.Page;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
-import com.shaidulin.kuskusbot.service.cache.ReceiptPresentationCacheService;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.util.CallbackMapper;
 import com.shaidulin.kuskusbot.util.ImageType;
 import com.shaidulin.kuskusbot.util.KeyboardCreator;
+import com.shaidulin.kuskusbot.util.SortType;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
@@ -20,7 +21,6 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -28,26 +28,27 @@ import java.util.Objects;
  */
 @Slf4j
 public record ReceiptPresentationPageBotProcessor(StringCacheService stringCacheService,
-                                                  ReceiptPresentationCacheService receiptPresentationCacheService,
                                                   ReceiptService receiptService,
-                                                  ImageService imageService) implements ImageSendBotProcessor {
+                                                  ImageService imageService,
+                                                  int receiptPageSize) implements ImageSendBotProcessor {
 
     @Override
     public Mono<? extends SendPhoto> process(Update update) {
         CallbackMapper.Wrapper callbackWrapper = CallbackMapper.mapCallback(update.getCallbackQuery());
+        SortType sortType = SortType.valueOf(callbackWrapper.data());
         return stringCacheService
                 .getIngredients(callbackWrapper.userId())
-                .flatMap(receiptService::getReceiptPresentations)
+                .flatMap(ingredients -> receiptService
+                        .getReceiptPresentations(ingredients, new Page(0, receiptPageSize), sortType))
+                .filterWhen(receiptPresentationMatch -> stringCacheService
+                        .storeReceiptPresentations(callbackWrapper.userId(), receiptPresentationMatch))
                 .map(ReceiptPresentationMatch::receipts)
-                .filterWhen(receiptPresentations -> receiptPresentationCacheService()
-                        .storeReceiptPresentations(callbackWrapper.userId(), receiptPresentations))
-                .flatMap(receiptPresentations -> provideMessage(receiptPresentations, callbackWrapper.chatId()));
+                .flatMap(receiptPresentations -> provideMessage(receiptPresentations.get(0), callbackWrapper.chatId(),
+                        receiptPresentations.size() > 1));
     }
 
-    private Mono<SendPhoto> provideMessage(List<ReceiptPresentationValue> receiptPresentations, String chatId) {
-        InlineKeyboardMarkup keyboard = KeyboardCreator.createReceiptKeyboard(receiptPresentations, 0);
-
-        ReceiptPresentationValue receiptPresentation = receiptPresentations.get(0);
+    private Mono<SendPhoto> provideMessage(ReceiptPresentationValue receiptPresentation, String chatId, boolean hasMore) {
+        InlineKeyboardMarkup keyboard = KeyboardCreator.createReceiptKeyboard(0, hasMore);
 
         log.debug("Got receipt presentation to render: {}", receiptPresentation);
 

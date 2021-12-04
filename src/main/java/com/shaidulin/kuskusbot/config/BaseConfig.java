@@ -2,29 +2,25 @@ package com.shaidulin.kuskusbot.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaidulin.kuskusbot.ReceiptBot;
-import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientSearchPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientSelectionBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.IngredientsPaginatedBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.callback.SortPageBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.command.HomePageBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.text.IngredientsPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.edit.ImageEditBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.edit.callback.ReceiptPresentationPaginatedBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.send.callback.ReceiptPresentationPageBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.command.HomePageBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.text.IngredientsPageBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.api.impl.ImageServiceImpl;
 import com.shaidulin.kuskusbot.service.api.impl.ReceiptServiceImpl;
-import com.shaidulin.kuskusbot.service.cache.ReceiptPresentationCacheService;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
-import com.shaidulin.kuskusbot.service.cache.codec.ReceiptPresentationCodec;
-import com.shaidulin.kuskusbot.service.cache.impl.ReceiptPresentationCacheServiceImpl;
 import com.shaidulin.kuskusbot.service.cache.impl.StringCacheServiceImpl;
 import com.shaidulin.kuskusbot.update.RouterMapper;
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.codec.RedisCodec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -48,20 +44,12 @@ public class BaseConfig {
     @Value("${api.image.url}")
     private String apiImageURL;
 
-    @Bean
-    StringCacheService stringCacheService(RedisClient redisClient) {
-        return new StringCacheServiceImpl(redisClient.connect().reactive());
-    }
+    @Value("${bot.receipt.page.size}")
+    private int receiptPageSize;
 
     @Bean
-    RedisCodec<String, ReceiptPresentationValue> receiptPresentationCodec(ObjectMapper objectMapper) {
-        return new ReceiptPresentationCodec(objectMapper);
-    }
-
-    @Bean
-    ReceiptPresentationCacheService receiptPresentationCacheService(RedisClient redisClient,
-                                                                    RedisCodec<String, ReceiptPresentationValue> codec) {
-        return new ReceiptPresentationCacheServiceImpl(redisClient.connect(codec).reactive());
+    StringCacheService stringCacheService(RedisClient redisClient, ObjectMapper objectMapper) {
+        return new StringCacheServiceImpl(redisClient.connect().reactive(), objectMapper);
     }
 
     @Bean
@@ -101,22 +89,25 @@ public class BaseConfig {
         return new IngredientsPaginatedBotProcessor(stringCacheService);
     }
 
+    @Bean
+    BaseBotProcessor sortPageBotProcessor() {
+        return new SortPageBotProcessor();
+    }
+
     // ----------------------- image processors ---------------------------------------
 
     @Bean
     ImageSendBotProcessor receiptPresentationPageBotProcessor(StringCacheService stringCacheService,
-                                                              ReceiptPresentationCacheService receiptPresentationCacheService,
                                                               ReceiptService receiptService,
                                                               ImageService imageService) {
-        return new ReceiptPresentationPageBotProcessor(stringCacheService, receiptPresentationCacheService,
-                receiptService, imageService);
+        return new ReceiptPresentationPageBotProcessor(stringCacheService, receiptService, imageService, receiptPageSize);
     }
 
     @Bean
     ImageEditBotProcessor receiptPresentationPaginatedBotProcessor(StringCacheService stringCacheService,
-                                                                   ReceiptPresentationCacheService receiptPresentationCacheService,
+                                                                   ReceiptService receiptService,
                                                                    ImageService imageService) {
-        return new ReceiptPresentationPaginatedBotProcessor(stringCacheService, receiptPresentationCacheService, imageService);
+        return new ReceiptPresentationPaginatedBotProcessor(stringCacheService, receiptService, imageService, receiptPageSize);
     }
 
     @Bean

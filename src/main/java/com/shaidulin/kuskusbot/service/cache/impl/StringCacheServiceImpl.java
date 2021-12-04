@@ -1,12 +1,16 @@
 package com.shaidulin.kuskusbot.service.cache.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shaidulin.kuskusbot.dto.receipt.Meta;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
-import com.shaidulin.kuskusbot.service.cache.KeyCreator;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Permission;
 import com.shaidulin.kuskusbot.util.ImageType;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
+import lombok.SneakyThrows;
 import reactor.core.publisher.Mono;
 
 import java.util.Collections;
@@ -15,8 +19,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redisReactiveCommands)
-        implements StringCacheService, KeyCreator {
+@SuppressWarnings("CallingSubscribeInNonBlockingScope")
+public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redisReactiveCommands,
+                                     ObjectMapper objectMapper) implements StringCacheService {
 
     @Override
     public Mono<Boolean> checkPermission(String userId, Permission permission) {
@@ -33,7 +38,8 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
                 composeKey(userId, "permissions"),
                 composeKey(userId, "suggestions"),
                 composeKey(userId, "ingredients"),
-                composeKey(userId)
+                composeReceiptPresentationsKey(userId),
+                composeReceiptPresentationsMetaKey(userId)
         };
 
         return redisReactiveCommands
@@ -55,7 +61,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
         String ingredientSuggestionsKey = composeKey(userId, "suggestions");
         return redisReactiveCommands
                 .multi()
-                .doOnSuccess(ignored -> redisReactiveCommands.del(ingredientSuggestionsKey).subscribe())
+                .doOnNext(ignored -> redisReactiveCommands.del(ingredientSuggestionsKey).subscribe())
                 .doOnSuccess(ignored ->
                         redisReactiveCommands
                                 .zadd(ingredientSuggestionsKey,
@@ -73,7 +79,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     public Mono<Boolean> storeIngredient(String userId, String ingredient) {
         return redisReactiveCommands
                 .multi()
-                .doOnSuccess(ignored ->
+                .doOnNext(ignored ->
                         redisReactiveCommands
                                 .rpush(composeKey(userId, "ingredients"), ingredient)
                                 .subscribe())
@@ -113,7 +119,71 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
         return redisReactiveCommands.set(key, telegramFileId);
     }
 
+    @Override
+    public Mono<Boolean> storeReceiptPresentations(String userId, ReceiptPresentationMatch match) {
+        String receiptPresentationsKey = composeReceiptPresentationsKey(userId);
+        return redisReactiveCommands
+                .multi()
+                .doOnNext(ignored -> redisReactiveCommands.del(receiptPresentationsKey).subscribe())
+                .doOnSuccess(ignored ->
+                        redisReactiveCommands
+                                .rpush(receiptPresentationsKey,
+                                        match.receipts().stream().map(this::serializeToCache).toArray(String[]::new))
+                                .subscribe())
+                .doOnSuccess(ignored ->
+                        redisReactiveCommands
+                                .set(composeReceiptPresentationsMetaKey(userId), serializeToCache(match.meta()))
+                                .subscribe())
+                .then(redisReactiveCommands.exec())
+                .map(objects -> !objects.wasDiscarded());
+    }
+
+    @Override
+    public Mono<ReceiptPresentationValue> getReceiptPresentation(String userId, int index) {
+        return redisReactiveCommands
+                .lindex(composeReceiptPresentationsKey(userId), index)
+                .map(cacheString -> deserializeFromCache(cacheString, ReceiptPresentationValue.class));
+    }
+
+    @Override
+    public Mono<Integer> getReceiptPresentationsSize(String userId) {
+        return redisReactiveCommands.llen(composeReceiptPresentationsKey(userId)).map(Long::intValue);
+    }
+
+    @Override
+    public Mono<Meta> getReceiptPresentationsMeta(String userId) {
+        return redisReactiveCommands
+                .get(composeReceiptPresentationsMetaKey(userId))
+                .map(cacheString -> deserializeFromCache(cacheString, Meta.class));
+    }
+
+    @SneakyThrows
+    private <T> String serializeToCache(T value) {
+        return objectMapper.writeValueAsString(value);
+    }
+
+    @SneakyThrows
+    private <T> T deserializeFromCache(String cacheString, Class<T> clazz) {
+        return objectMapper.readValue(cacheString, clazz);
+    }
+
     private Mono<String> modifyPermission(String userId, String permissionString) {
         return redisReactiveCommands.set(composeKey(userId, "permissions"), permissionString);
+    }
+
+    private String composeKey(String userId, String suffix) {
+        return String.join(":", userId, suffix);
+    }
+
+    private String composeReceiptPresentationsKey(String userId) {
+        return String.join(":", userId, "receipts", "presentations");
+    }
+
+    private String composeReceiptPresentationsMetaKey(String userId) {
+        return String.join(":", userId, "receipts", "presentations", "meta");
+    }
+
+    private String composeMainImageKey(String id) {
+        return String.join(":", "image", id);
     }
 }
