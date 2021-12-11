@@ -17,6 +17,7 @@ public record Router(Method method, Type type) {
         SORT_PAGE,
 
         RECEIPT_PRESENTATION_PAGE,
-        RECEIPT_PRESENTATION_PAGINATED
+        RECEIPT_PRESENTATION_PAGINATED,
+        RECEIPT_WITH_INGREDIENTS_PAGE
     }
 }

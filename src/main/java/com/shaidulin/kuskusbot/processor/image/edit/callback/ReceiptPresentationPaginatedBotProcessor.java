@@ -87,7 +87,8 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService string
 
     private Mono<EditMessageMedia> provideMessage(ReceiptPresentationValue receiptPresentation,
                                                   CallbackMapper.Wrapper callbackWrapper, int page, boolean hasMore) {
-        InlineKeyboardMarkup keyboard = KeyboardCreator.createReceiptKeyboard(page, hasMore);
+        InlineKeyboardMarkup keyboard =
+                KeyboardCreator.createReceiptPresentationKeyboard(page, receiptPresentation.queryParam(), hasMore);
 
         log.debug("Got receipt presentation to render: {}", receiptPresentation);
 

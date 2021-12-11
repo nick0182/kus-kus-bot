@@ -3,6 +3,7 @@ package com.shaidulin.kuskusbot.service.api.impl;
 import com.shaidulin.kuskusbot.dto.receipt.Page;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptValue;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.util.SortType;
 import com.shaidulin.kuskusbot.util.URIBuilder;
@@ -46,5 +47,14 @@ public record ReceiptServiceImpl(WebClient webClient, String apiReceiptURL) impl
                 .uri(URIBuilder.buildURI(apiReceiptURL, "/api/v1/receipts/presentations", queryParams))
                 .retrieve()
                 .bodyToMono(ReceiptPresentationMatch.class);
+    }
+
+    @Override
+    public Mono<ReceiptValue> getReceipt(int id) {
+        return webClient
+                .get()
+                .uri(URIBuilder.buildURI(apiReceiptURL, "/api/v1/receipts/" + id, null))
+                .retrieve()
+                .bodyToMono(ReceiptValue.class);
     }
 }

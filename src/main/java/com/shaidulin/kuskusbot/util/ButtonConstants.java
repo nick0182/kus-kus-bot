@@ -11,19 +11,29 @@ public final class ButtonConstants {
     private ButtonConstants() {
     }
 
+    // -------------------- button text ----------------------------
+
     public static final String SEARCH_RECEIPTS = "Искать!";
 
     public static final String SEARCH_NEXT_INGREDIENT = "Добавить ингредиент";
 
     public static final String START_SEARCH = "Начать поиск";
 
-    public static final String SHOW_RECEIPT_INGREDIENTS = "Показать все ингредиенты";
-
-    public static final String INGREDIENTS_PAGE_PAYLOAD_IDENTIFIER = "Ing";
-
-    public static final String RECEIPTS_PAGE_PAYLOAD_IDENTIFIER = "Rec";
+    public static final String SHOW_RECEIPT = "Показать рецепт";
 
     public static final String SORT_MOST_ACCURATE = "Самые точные";
+
+    public static final String RETURN_TO_RECEIPTS = "↩";
+
+    // -------------------- button payload prefixes ----------------------------
+
+    public static final String INGREDIENTS_PAGE_PAYLOAD_PREFIX = "Ing";
+
+    public static final String RECEIPTS_PAGE_PAYLOAD_PREFIX = "Rec";
+
+    public static final String RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX = "RecIng";
+
+    // -------------------- keyboards ----------------------------
 
     public static final InlineKeyboardMarkup startSearchKeyboard;
 

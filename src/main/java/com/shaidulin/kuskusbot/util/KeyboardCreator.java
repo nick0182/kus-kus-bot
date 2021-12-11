@@ -24,7 +24,7 @@ public class KeyboardCreator {
                 .forEach(ingredient -> buttons.add(
                         Collections.singletonList(createButton(createButtonText(ingredient), ingredient.name()))));
 
-        createNavigationPanelRow(INGREDIENTS_PAGE_PAYLOAD_IDENTIFIER, page, ingredients.size() > shownCount + pageSize)
+        createNavigationPanelRow(INGREDIENTS_PAGE_PAYLOAD_PREFIX, page, ingredients.size() > shownCount + pageSize)
                 .ifPresent(buttons::add);
 
         return InlineKeyboardMarkup
@@ -33,13 +33,25 @@ public class KeyboardCreator {
                 .build();
     }
 
-    public static InlineKeyboardMarkup createReceiptKeyboard(int page, boolean hasMore) {
+    public static InlineKeyboardMarkup createReceiptPresentationKeyboard(int page, int queryParam, boolean hasMore) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
 
-        buttons.add(Collections.singletonList(createButton(SHOW_RECEIPT_INGREDIENTS, SHOW_RECEIPT_INGREDIENTS)));
+        buttons.add(Collections.singletonList(createButton(SHOW_RECEIPT, createReceiptIdentifier(queryParam, page))));
 
-        createNavigationPanelRow(RECEIPTS_PAGE_PAYLOAD_IDENTIFIER, page, hasMore)
+        createNavigationPanelRow(RECEIPTS_PAGE_PAYLOAD_PREFIX, page, hasMore)
                 .ifPresent(buttons::add);
+
+        return InlineKeyboardMarkup
+                .builder()
+                .keyboard(buttons)
+                .build();
+    }
+
+    public static InlineKeyboardMarkup createReceiptKeyboard(int page) {
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+
+        buttons.add(Collections.singletonList(
+                createButton(RETURN_TO_RECEIPTS, createPageIdentifier(RECEIPTS_PAGE_PAYLOAD_PREFIX, page))));
 
         return InlineKeyboardMarkup
                 .builder()
@@ -79,5 +91,10 @@ public class KeyboardCreator {
 
     private static String createPageIdentifier(String payloadIdentifier, int page) {
         return String.join("_", payloadIdentifier, String.valueOf(page));
+    }
+
+    private static String createReceiptIdentifier(int queryParam, int page) {
+        return String.join("_", RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX,
+                String.valueOf(queryParam), String.valueOf(page));
     }
 }

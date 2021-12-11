@@ -5,6 +5,7 @@ import com.shaidulin.kuskusbot.dto.receipt.Meta;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptValue;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Permission;
 import com.shaidulin.kuskusbot.util.ImageType;
@@ -155,6 +156,13 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
         return redisReactiveCommands
                 .get(composeReceiptPresentationsMetaKey(userId))
                 .map(cacheString -> deserializeFromCache(cacheString, Meta.class));
+    }
+
+    @Override
+    public Mono<Boolean> storeReceipt(String userId, ReceiptValue receipt) {
+        return redisReactiveCommands
+                .set(composeKey(userId, "receipt"), serializeToCache(receipt))
+                .map(response -> response.equals("OK"));
     }
 
     @SneakyThrows

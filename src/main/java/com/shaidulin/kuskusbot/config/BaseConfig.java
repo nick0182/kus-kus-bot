@@ -3,10 +3,7 @@ package com.shaidulin.kuskusbot.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaidulin.kuskusbot.ReceiptBot;
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.callback.IngredientSearchPageBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.callback.IngredientSelectionBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.callback.IngredientsPaginatedBotProcessor;
-import com.shaidulin.kuskusbot.processor.base.callback.SortPageBotProcessor;
+import com.shaidulin.kuskusbot.processor.base.callback.*;
 import com.shaidulin.kuskusbot.processor.base.command.HomePageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.text.IngredientsPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.edit.ImageEditBotProcessor;
@@ -53,13 +50,13 @@ public class BaseConfig {
     }
 
     @Bean
-    ReceiptService receiptService(WebClient webClient) {
-        return new ReceiptServiceImpl(webClient, apiReceiptURL);
+    ReceiptService receiptService(WebClient.Builder webClient) {
+        return new ReceiptServiceImpl(webClient.build(), apiReceiptURL);
     }
 
     @Bean
-    ImageService imageService(WebClient webClient) {
-        return new ImageServiceImpl(webClient, apiImageURL);
+    ImageService imageService(WebClient.Builder webClient) {
+        return new ImageServiceImpl(webClient.build(), apiImageURL);
     }
 
     // ----------------------- base processors ---------------------------------------
@@ -92,6 +89,12 @@ public class BaseConfig {
     @Bean
     BaseBotProcessor sortPageBotProcessor() {
         return new SortPageBotProcessor();
+    }
+
+    @Bean
+    BaseBotProcessor receiptIngredientsPageBotProcessor(StringCacheService stringCacheService,
+                                                        ReceiptService receiptService) {
+        return new ReceiptIngredientsPageBotProcessor(stringCacheService, receiptService);
     }
 
     // ----------------------- image processors ---------------------------------------

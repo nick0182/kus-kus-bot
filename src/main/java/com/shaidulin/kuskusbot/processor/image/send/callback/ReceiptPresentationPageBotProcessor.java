@@ -48,7 +48,8 @@ public record ReceiptPresentationPageBotProcessor(StringCacheService stringCache
     }
 
     private Mono<SendPhoto> provideMessage(ReceiptPresentationValue receiptPresentation, String chatId, boolean hasMore) {
-        InlineKeyboardMarkup keyboard = KeyboardCreator.createReceiptKeyboard(0, hasMore);
+        InlineKeyboardMarkup keyboard =
+                KeyboardCreator.createReceiptPresentationKeyboard(0, receiptPresentation.queryParam(), hasMore);
 
         log.debug("Got receipt presentation to render: {}", receiptPresentation);
 

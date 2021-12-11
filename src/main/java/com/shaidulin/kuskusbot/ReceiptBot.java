@@ -9,9 +9,7 @@ import com.shaidulin.kuskusbot.util.ImageType;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
-import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -78,11 +76,11 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
                 });
     }
 
-    private Mono<? extends SendPhoto> executeImageSendMethod(Router.Type type, Update update) {
+    private Mono<String> executeImageSendMethod(Router.Type type, Update update) {
         return imageSendBotProcessorMap.get(type)
                 .process(update)
                 .doOnSuccess(this::logIfNullMethod)
-                .doOnNext(sendPhoto -> {
+                .flatMap(sendPhoto -> {
                     try {
                         execute(deletePreviousMessage(update.getCallbackQuery().getMessage()));
 
@@ -94,19 +92,21 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
                         if (isNewImage) {
                             log.debug("Storing new image in cache with fileId: {} with name: {}", telegramFileId, imageName);
-                            routerMapper.stringCacheService().storeImage(imageName, ImageType.MAIN, telegramFileId).subscribe();
+                            return routerMapper.stringCacheService().storeImage(imageName, ImageType.MAIN, telegramFileId);
+                        } else {
+                            return Mono.empty();
                         }
                     } catch (TelegramApiException e) {
-                        log.error("Failed to execute Telegram API method", e);
+                        return Mono.error(new RuntimeException("Failed to execute Telegram API method", e));
                     }
                 });
     }
 
-    private Mono<? extends EditMessageMedia> executeImageEditMethod(Router.Type type, Update update) {
+    private Mono<String> executeImageEditMethod(Router.Type type, Update update) {
         return imageEditBotProcessorMap.get(type)
                 .process(update)
                 .doOnSuccess(this::logIfNullMethod)
-                .doOnNext(editMessageMedia -> {
+                .flatMap(editMessageMedia -> {
                     try {
                         InputMedia imageToSend = editMessageMedia.getMedia();
                         String imageName = imageToSend.getMediaName();
@@ -116,10 +116,12 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
                         if (isNewImage) {
                             log.debug("Storing new image in cache with fileId: {} with name: {}", telegramFileId, imageName);
-                            routerMapper.stringCacheService().storeImage(imageName, ImageType.MAIN, telegramFileId).subscribe();
+                            return routerMapper.stringCacheService().storeImage(imageName, ImageType.MAIN, telegramFileId);
+                        } else {
+                            return Mono.empty();
                         }
                     } catch (TelegramApiException e) {
-                        log.error("Failed to execute Telegram API method", e);
+                        return Mono.error(new RuntimeException("Failed to execute Telegram API method", e));
                     }
                 });
     }

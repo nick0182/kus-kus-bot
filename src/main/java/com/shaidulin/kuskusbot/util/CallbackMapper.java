@@ -16,5 +16,5 @@ public final class CallbackMapper {
         return new Wrapper(userId, chatId, messageId, data);
     }
 
-    public static record Wrapper(String userId, String chatId, Integer messageId, String data) {}
+    public record Wrapper(String userId, String chatId, Integer messageId, String data) {}
 }

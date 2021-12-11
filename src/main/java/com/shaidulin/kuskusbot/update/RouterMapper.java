@@ -46,10 +46,13 @@ public record RouterMapper(StringCacheService stringCacheService) {
         } else if (callbackData.equals(ButtonConstants.START_SEARCH)
                 || callbackData.equals(ButtonConstants.SEARCH_NEXT_INGREDIENT)) {
             return new Router(BASE, INGREDIENT_SEARCH_PAGE);
-        } else if (callbackData.startsWith(ButtonConstants.INGREDIENTS_PAGE_PAYLOAD_IDENTIFIER)) {
+        } else if (callbackData.startsWith(ButtonConstants.RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX)) {
+            callbackQuery.setData(resolveReceiptPage(callbackData));
+            return new Router(BASE, RECEIPT_WITH_INGREDIENTS_PAGE);
+        } else if (callbackData.startsWith(ButtonConstants.INGREDIENTS_PAGE_PAYLOAD_PREFIX)) {
             callbackQuery.setData(resolvePage(callbackData));
             return new Router(BASE, INGREDIENTS_PAGINATED);
-        } else if (callbackData.startsWith(ButtonConstants.RECEIPTS_PAGE_PAYLOAD_IDENTIFIER)) {
+        } else if (callbackData.startsWith(ButtonConstants.RECEIPTS_PAGE_PAYLOAD_PREFIX)) {
             callbackQuery.setData(resolvePage(callbackData));
             return new Router(IMAGE_EDIT, RECEIPT_PRESENTATION_PAGINATED);
         } else if (Arrays.stream(SortType.values()).anyMatch(sortType -> sortType.name().equals(callbackData))) {
@@ -61,5 +64,9 @@ public record RouterMapper(StringCacheService stringCacheService) {
 
     private String resolvePage(String callbackData) {
         return callbackData.split("_")[1];
+    }
+
+    private String resolveReceiptPage(String callbackData) {
+        return callbackData.replace(ButtonConstants.RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX + "_", "");
     }
 }

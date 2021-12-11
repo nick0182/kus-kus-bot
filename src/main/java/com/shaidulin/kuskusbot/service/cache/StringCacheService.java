@@ -4,6 +4,7 @@ import com.shaidulin.kuskusbot.dto.receipt.Meta;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
+import com.shaidulin.kuskusbot.dto.receipt.ReceiptValue;
 import com.shaidulin.kuskusbot.update.Permission;
 import com.shaidulin.kuskusbot.util.ImageType;
 import reactor.core.publisher.Mono;
@@ -39,4 +40,6 @@ public interface StringCacheService {
     Mono<Integer> getReceiptPresentationsSize(String userId);
 
     Mono<Meta> getReceiptPresentationsMeta(String userId);
+
+    Mono<Boolean> storeReceipt(String userId, ReceiptValue receipt);
 }
