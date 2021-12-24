@@ -12,7 +12,11 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.shaidulin.kuskusbot.util.ButtonConstants.RECEIPT_WITH_NUTRITION_OVERVIEW_PAYLOAD_PREFIX;
+import static com.shaidulin.kuskusbot.util.ButtonConstants.SHOW_NUTRITION_OVERVIEW;
 
 public record ReceiptIngredientsPageBotProcessor(StringCacheService stringCacheService,
                                                  ReceiptService receiptService) implements BaseBotProcessor {
@@ -30,7 +34,8 @@ public record ReceiptIngredientsPageBotProcessor(StringCacheService stringCacheS
                         .chatId(callbackWrapper.chatId())
                         .messageId(callbackWrapper.messageId())
                         .caption(createIngredientsCaption(receipt.ingredients()))
-                        .replyMarkup(KeyboardCreator.createReceiptKeyboard(page))
+                        .replyMarkup(KeyboardCreator.createReceiptKeyboard(receiptId, page,
+                                Map.of(SHOW_NUTRITION_OVERVIEW, RECEIPT_WITH_NUTRITION_OVERVIEW_PAYLOAD_PREFIX)))
                         .build());
 
     }

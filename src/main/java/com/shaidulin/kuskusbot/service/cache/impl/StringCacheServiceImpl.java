@@ -39,6 +39,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
                 composeKey(userId, "permissions"),
                 composeKey(userId, "suggestions"),
                 composeKey(userId, "ingredients"),
+                composeKey(userId, "receipt"),
                 composeReceiptPresentationsKey(userId),
                 composeReceiptPresentationsMetaKey(userId)
         };
@@ -163,6 +164,13 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
         return redisReactiveCommands
                 .set(composeKey(userId, "receipt"), serializeToCache(receipt))
                 .map(response -> response.equals("OK"));
+    }
+
+    @Override
+    public Mono<ReceiptValue> getReceipt(String userId) {
+        return redisReactiveCommands
+                .get(composeKey(userId, "receipt"))
+                .map(cacheString -> deserializeFromCache(cacheString, ReceiptValue.class));
     }
 
     @SneakyThrows

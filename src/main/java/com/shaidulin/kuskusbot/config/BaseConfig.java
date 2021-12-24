@@ -97,6 +97,11 @@ public class BaseConfig {
         return new ReceiptIngredientsPageBotProcessor(stringCacheService, receiptService);
     }
 
+    @Bean
+    BaseBotProcessor receiptNutritionOverviewPageBotProcessor(StringCacheService stringCacheService) {
+        return new ReceiptNutritionOverviewPageBotProcessor(stringCacheService);
+    }
+
     // ----------------------- image processors ---------------------------------------
 
     @Bean

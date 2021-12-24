@@ -19,9 +19,11 @@ public final class ButtonConstants {
 
     public static final String START_SEARCH = "Начать поиск";
 
-    public static final String SHOW_RECEIPT = "Показать рецепт";
-
     public static final String SORT_MOST_ACCURATE = "Самые точные";
+
+    public static final String SHOW_INGREDIENTS = "Ингредиенты";
+
+    public static final String SHOW_NUTRITION_OVERVIEW = "Энергетическая ценность";
 
     public static final String RETURN_TO_RECEIPTS = "↩";
 
@@ -32,6 +34,8 @@ public final class ButtonConstants {
     public static final String RECEIPTS_PAGE_PAYLOAD_PREFIX = "Rec";
 
     public static final String RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX = "RecIng";
+
+    public static final String RECEIPT_WITH_NUTRITION_OVERVIEW_PAYLOAD_PREFIX = "RecNut";
 
     // -------------------- keyboards ----------------------------
 

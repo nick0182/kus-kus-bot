@@ -42,4 +42,6 @@ public interface StringCacheService {
     Mono<Meta> getReceiptPresentationsMeta(String userId);
 
     Mono<Boolean> storeReceipt(String userId, ReceiptValue receipt);
+
+    Mono<ReceiptValue> getReceipt(String userId);
 }

@@ -36,10 +36,11 @@ public class KeyboardCreator {
     public static InlineKeyboardMarkup createReceiptPresentationKeyboard(int page, int queryParam, boolean hasMore) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
 
-        buttons.add(Collections.singletonList(createButton(SHOW_RECEIPT, createReceiptIdentifier(queryParam, page))));
+        buttons.add(Collections.singletonList(createButton(
+                SHOW_INGREDIENTS,
+                createReceiptIdentifier(queryParam, page, RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX))));
 
-        createNavigationPanelRow(RECEIPTS_PAGE_PAYLOAD_PREFIX, page, hasMore)
-                .ifPresent(buttons::add);
+        createNavigationPanelRow(RECEIPTS_PAGE_PAYLOAD_PREFIX, page, hasMore).ifPresent(buttons::add);
 
         return InlineKeyboardMarkup
                 .builder()
@@ -47,8 +48,11 @@ public class KeyboardCreator {
                 .build();
     }
 
-    public static InlineKeyboardMarkup createReceiptKeyboard(int page) {
+    public static InlineKeyboardMarkup createReceiptKeyboard(int queryParam, int page, Map<String, String> buttonsMap) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+
+        buttonsMap.forEach((text, data) -> buttons.add(
+                Collections.singletonList(createButton(text, createReceiptIdentifier(queryParam, page, data)))));
 
         buttons.add(Collections.singletonList(
                 createButton(RETURN_TO_RECEIPTS, createPageIdentifier(RECEIPTS_PAGE_PAYLOAD_PREFIX, page))));
@@ -93,8 +97,8 @@ public class KeyboardCreator {
         return String.join("_", payloadIdentifier, String.valueOf(page));
     }
 
-    private static String createReceiptIdentifier(int queryParam, int page) {
-        return String.join("_", RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX,
+    private static String createReceiptIdentifier(int queryParam, int page, String payloadPrefix) {
+        return String.join("_", payloadPrefix,
                 String.valueOf(queryParam), String.valueOf(page));
     }
 }

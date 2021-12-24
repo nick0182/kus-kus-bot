@@ -47,8 +47,11 @@ public record RouterMapper(StringCacheService stringCacheService) {
                 || callbackData.equals(ButtonConstants.SEARCH_NEXT_INGREDIENT)) {
             return new Router(BASE, INGREDIENT_SEARCH_PAGE);
         } else if (callbackData.startsWith(ButtonConstants.RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX)) {
-            callbackQuery.setData(resolveReceiptPage(callbackData));
+            callbackQuery.setData(resolveReceiptWithIngredientsPage(callbackData));
             return new Router(BASE, RECEIPT_WITH_INGREDIENTS_PAGE);
+        } else if (callbackData.startsWith(ButtonConstants.RECEIPT_WITH_NUTRITION_OVERVIEW_PAYLOAD_PREFIX)) {
+            callbackQuery.setData(resolveReceiptWithNutritionOverviewPage(callbackData));
+            return new Router(BASE, RECEIPT_WITH_NUTRITION_OVERVIEW_PAGE);
         } else if (callbackData.startsWith(ButtonConstants.INGREDIENTS_PAGE_PAYLOAD_PREFIX)) {
             callbackQuery.setData(resolvePage(callbackData));
             return new Router(BASE, INGREDIENTS_PAGINATED);
@@ -66,7 +69,11 @@ public record RouterMapper(StringCacheService stringCacheService) {
         return callbackData.split("_")[1];
     }
 
-    private String resolveReceiptPage(String callbackData) {
+    private String resolveReceiptWithIngredientsPage(String callbackData) {
         return callbackData.replace(ButtonConstants.RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX + "_", "");
+    }
+
+    private String resolveReceiptWithNutritionOverviewPage(String callbackData) {
+        return callbackData.replace(ButtonConstants.RECEIPT_WITH_NUTRITION_OVERVIEW_PAYLOAD_PREFIX + "_", "");
     }
 }
