@@ -1,6 +1,6 @@
 package com.shaidulin.kuskusbot.update;
 
-public record Router(Method method, Type type) {
+public record Router(Method method, Type type, Data data) {
 
     public enum Method {
         BASE, IMAGE_SEND, IMAGE_EDIT

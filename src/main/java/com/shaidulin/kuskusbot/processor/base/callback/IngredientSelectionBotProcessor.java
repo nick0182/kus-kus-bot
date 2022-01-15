@@ -2,12 +2,14 @@ package com.shaidulin.kuskusbot.processor.base.callback;
 
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
-import com.shaidulin.kuskusbot.util.ButtonConstants;
-import com.shaidulin.kuskusbot.util.CallbackMapper;
+import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuples;
+
+import java.util.UUID;
 
 /**
  * Shows chosen ingredients and offers:
@@ -17,21 +19,31 @@ import reactor.core.publisher.Mono;
 public record IngredientSelectionBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     @Override
-    public Mono<EditMessageText> process(Update update) {
-        CallbackMapper.Wrapper callbackWrapper = CallbackMapper.mapCallback(update.getCallbackQuery());
+    public Mono<EditMessageText> process(Data data) {
+        String userId = data.getUserId();
         return cacheService
-                .storeIngredient(callbackWrapper.userId(), callbackWrapper.data())
-                .flatMap(ignored -> cacheService.getIngredients(callbackWrapper.userId()))
-                .map(ingredients -> EditMessageText
+                .storeIngredient(userId, data.getSession().getIngredientName())
+                .flatMap(ignored -> cacheService.getIngredients(userId))
+                .zipWith(compileButton(userId, Data.Action.SHOW_SORT_OPTIONS))
+                .zipWhen(tuple2 -> compileButton(userId, Data.Action.PROMPT_INGREDIENT),
+                        (tuple2, buttonKey) ->
+                                Tuples.of(tuple2.getT1(),
+                                        DynamicKeyboard.createIngredientSelectionKeyboard(tuple2.getT2(), buttonKey)))
+                .map(tuple2 -> EditMessageText
                         .builder()
-                        .chatId(callbackWrapper.chatId())
-                        .messageId(callbackWrapper.messageId())
-                        .text("Выбранные ингредиенты: " + ingredients)
-                        .replyMarkup(ingredients.size() != 3
-                                ? ButtonConstants.twoOptionsChoiceKeyboard
-                                : ButtonConstants.oneOptionChoiceKeyboard)
+                        .chatId(data.getChatId())
+                        .messageId(data.getMessageId())
+                        .text("Выбранные ингредиенты: " + tuple2.getT1())
+                        .replyMarkup(tuple2.getT2())
                         .build()
                 );
+    }
+
+    private Mono<UUID> compileButton(String userId, Data.Action action) {
+        UUID key = UUID.randomUUID();
+        return cacheService
+                .storeSession(userId, key, Data.Session.builder().action(action).build())
+                .map(ignored -> key);
     }
 
     @Override

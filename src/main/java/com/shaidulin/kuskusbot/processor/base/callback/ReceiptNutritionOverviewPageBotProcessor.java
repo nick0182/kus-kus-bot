@@ -3,23 +3,23 @@ package com.shaidulin.kuskusbot.processor.base.callback;
 import com.shaidulin.kuskusbot.dto.receipt.Nutrition;
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
-import com.shaidulin.kuskusbot.util.CallbackMapper;
-import com.shaidulin.kuskusbot.util.KeyboardCreator;
-import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
+import com.shaidulin.kuskusbot.util.keyboard.ButtonConstants;
+import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
-import org.telegram.telegrambots.meta.api.objects.Update;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuples;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.shaidulin.kuskusbot.util.ButtonConstants.RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX;
-import static com.shaidulin.kuskusbot.util.ButtonConstants.SHOW_INGREDIENTS;
-
-public record ReceiptNutritionOverviewPageBotProcessor(StringCacheService stringCacheService)
-        implements BaseBotProcessor {
+/**
+ * Shows receipt nutrition overview
+ */
+public record ReceiptNutritionOverviewPageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     private static final String PROTEIN_EMOJI = "\uD83E\uDD69";
 
@@ -30,21 +30,40 @@ public record ReceiptNutritionOverviewPageBotProcessor(StringCacheService string
     private static final String CALORIES_EMOJI = "\uD83D\uDCAA";
 
     @Override
-    public Mono<? extends BotApiMethod<?>> process(Update update) {
-        CallbackMapper.Wrapper callbackWrapper = CallbackMapper.mapCallback(update.getCallbackQuery());
-        String[] dataArray = callbackWrapper.data().split("_");
-        int receiptId = Integer.parseInt(dataArray[0]);
-        int page = Integer.parseInt(dataArray[1]);
-        return stringCacheService
-                .getReceipt(callbackWrapper.userId())
-                .map(receipt -> EditMessageCaption.builder()
-                        .chatId(callbackWrapper.chatId())
-                        .messageId(callbackWrapper.messageId())
-                        .caption(createNutritionOverviewCaption(receipt.nutritions()))
-                        .replyMarkup(KeyboardCreator.createReceiptKeyboard(receiptId, page,
-                                Map.of(SHOW_INGREDIENTS, RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX)))
+    public Mono<EditMessageCaption> process(Data data) {
+        return cacheService
+                .getReceipt(data.getUserId())
+                .zipWith(compileButton(data, Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE))
+                .zipWith(compileButton(data, Data.Action.SHOW_RECEIPT_INGREDIENTS_PAGE))
+                .zipWith(compileButton(data, Data.Action.SHOW_STEP_PAGE),
+                        (tuple2OfTuple2, stepButtonKey) -> Tuples.of(
+                                tuple2OfTuple2.getT1().getT1().nutritions(),
+                                DynamicKeyboard.createReceiptKeyboard(
+                                        tuple2OfTuple2.getT1().getT2(),
+                                        Map.of(ButtonConstants.SHOW_INGREDIENTS_OVERVIEW, tuple2OfTuple2.getT2(),
+                                                ButtonConstants.SHOW_STEPS, stepButtonKey))))
+                .map(tuple2 -> EditMessageCaption.builder()
+                        .chatId(data.getChatId())
+                        .messageId(data.getMessageId())
+                        .caption(createNutritionOverviewCaption(tuple2.getT1()))
+                        .replyMarkup(tuple2.getT2())
                         .parseMode("HTML")
                         .build());
+    }
+
+    private Mono<UUID> compileButton(Data data, Data.Action action) {
+        Data.Session currentSession = data.getSession();
+        UUID key = UUID.randomUUID();
+        Data.Session session = Data.Session
+                .builder()
+                .action(action)
+                .receiptSortType(currentSession.getReceiptSortType())
+                .receiptId(currentSession.getReceiptId())
+                .currentReceiptPage(currentSession.getCurrentReceiptPage())
+                .build();
+        return cacheService
+                .storeSession(data.getUserId(), key, session)
+                .map(ignored -> key);
     }
 
     private String createNutritionOverviewCaption(List<Nutrition> nutritionOverview) {

@@ -7,55 +7,62 @@ import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
-import com.shaidulin.kuskusbot.util.CallbackMapper;
 import com.shaidulin.kuskusbot.util.ImageType;
-import com.shaidulin.kuskusbot.util.KeyboardCreator;
-import com.shaidulin.kuskusbot.util.SortType;
+import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuples;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Shows the first page of receipt presentation
  */
 @Slf4j
-public record ReceiptPresentationPageBotProcessor(StringCacheService stringCacheService,
+public record ReceiptPresentationPageBotProcessor(StringCacheService cacheService,
                                                   ReceiptService receiptService,
                                                   ImageService imageService,
                                                   int receiptPageSize) implements ImageSendBotProcessor {
 
     @Override
-    public Mono<? extends SendPhoto> process(Update update) {
-        CallbackMapper.Wrapper callbackWrapper = CallbackMapper.mapCallback(update.getCallbackQuery());
-        SortType sortType = SortType.valueOf(callbackWrapper.data());
-        return stringCacheService
-                .getIngredients(callbackWrapper.userId())
+    public Mono<? extends SendPhoto> process(Data data) {
+        return cacheService
+                .getIngredients(data.getUserId())
                 .flatMap(ingredients -> receiptService
-                        .getReceiptPresentations(ingredients, new Page(0, receiptPageSize), sortType))
-                .filterWhen(receiptPresentationMatch -> stringCacheService
-                        .storeReceiptPresentations(callbackWrapper.userId(), receiptPresentationMatch))
+                        .getReceiptPresentations(
+                                ingredients,
+                                new Page(0, receiptPageSize),
+                                data.getSession().getReceiptSortType()))
+                .filterWhen(receiptPresentationMatch -> cacheService
+                        .storeReceiptPresentations(data.getUserId(), receiptPresentationMatch))
                 .map(ReceiptPresentationMatch::receipts)
-                .flatMap(receiptPresentations -> provideMessage(receiptPresentations.get(0), callbackWrapper.chatId(),
-                        receiptPresentations.size() > 1));
+                .zipWhen(receiptPresentations -> compileNextPageButton(data, receiptPresentations.size() > 1))
+                .zipWhen(tuple2 -> compileReceiptIngredientsButton(data, tuple2.getT1().get(0).queryParam()),
+                        (tuple2, receiptIngredientsButtonKey) ->
+                                Tuples.of(tuple2.getT1().get(0),
+                                        DynamicKeyboard.createReceiptPresentationKeyboard(
+                                                receiptIngredientsButtonKey,
+                                                DynamicKeyboard.NULL_KEY_UUID,
+                                                tuple2.getT2())))
+                .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data.getChatId(), tuple2.getT2()));
     }
 
-    private Mono<SendPhoto> provideMessage(ReceiptPresentationValue receiptPresentation, String chatId, boolean hasMore) {
-        InlineKeyboardMarkup keyboard =
-                KeyboardCreator.createReceiptPresentationKeyboard(0, receiptPresentation.queryParam(), hasMore);
-
+    private Mono<SendPhoto> provideMessage(ReceiptPresentationValue receiptPresentation,
+                                           String chatId,
+                                           InlineKeyboardMarkup keyboard) {
         log.debug("Got receipt presentation to render: {}", receiptPresentation);
 
         String imageId = String.valueOf(receiptPresentation.queryParam());
 
-        return stringCacheService
+        return cacheService
                 .getImage(imageId, ImageType.MAIN)
                 .map(cachedImage -> compileMessage(cachedImage, null, chatId, receiptPresentation, keyboard))
                 .switchIfEmpty(imageService
@@ -85,6 +92,39 @@ public record ReceiptPresentationPageBotProcessor(StringCacheService stringCache
                 .caption(imageService.createPhotoCaption(receiptPresentation))
                 .replyMarkup(keyboard)
                 .build();
+    }
+
+    private Mono<UUID> compileReceiptIngredientsButton(Data data, int receiptId) {
+        Data.Session currentSession = data.getSession();
+        UUID key = UUID.randomUUID();
+        Data.Session session = Data.Session
+                .builder()
+                .action(Data.Action.SHOW_RECEIPT_INGREDIENTS_PAGE)
+                .receiptSortType(currentSession.getReceiptSortType())
+                .receiptId(receiptId)
+                .currentReceiptPage(0)
+                .build();
+        return cacheService
+                .storeSession(data.getUserId(), key, session)
+                .map(ignored -> key);
+    }
+
+    private Mono<UUID> compileNextPageButton(Data data, boolean hasMoreReceipts) {
+        if (hasMoreReceipts) {
+            Data.Session currentSession = data.getSession();
+            UUID key = UUID.randomUUID();
+            Data.Session session = Data.Session
+                    .builder()
+                    .action(Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE)
+                    .receiptSortType(currentSession.getReceiptSortType())
+                    .currentReceiptPage(1)
+                    .build();
+            return cacheService
+                    .storeSession(data.getUserId(), key, session)
+                    .map(ignored -> key);
+        } else {
+            return Mono.just(DynamicKeyboard.NULL_KEY_UUID);
+        }
     }
 
     @Override

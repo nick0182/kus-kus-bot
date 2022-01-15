@@ -55,17 +55,17 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
         routerMapper
                 .routeIncomingUpdate(update)
                 .flatMap(router -> switch (router.method()) {
-                    case BASE -> executeBaseMethod(router.type(), update);
-                    case IMAGE_SEND -> executeImageSendMethod(router.type(), update);
-                    case IMAGE_EDIT -> executeImageEditMethod(router.type(), update);
+                    case BASE -> executeBaseMethod(router);
+                    case IMAGE_SEND -> executeImageSendMethod(router, update.getCallbackQuery().getMessage());
+                    case IMAGE_EDIT -> executeImageEditMethod(router);
                 })
                 .doOnError(error -> log.error("Error occurred during process of update: " + update, error))
                 .subscribe();
     }
 
-    private Mono<? extends BotApiMethod<?>> executeBaseMethod(Router.Type type, Update update) {
-        return baseBotProcessorMap.get(type)
-                .process(update)
+    private Mono<? extends BotApiMethod<?>> executeBaseMethod(Router router) {
+        return baseBotProcessorMap.get(router.type())
+                .process(router.data())
                 .doOnSuccess(this::logIfNullMethod)
                 .doOnNext(botApiMethod -> {
                     try {
@@ -76,13 +76,13 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
                 });
     }
 
-    private Mono<String> executeImageSendMethod(Router.Type type, Update update) {
-        return imageSendBotProcessorMap.get(type)
-                .process(update)
+    private Mono<String> executeImageSendMethod(Router router, Message message) {
+        return imageSendBotProcessorMap.get(router.type())
+                .process(router.data())
                 .doOnSuccess(this::logIfNullMethod)
                 .flatMap(sendPhoto -> {
                     try {
-                        execute(deletePreviousMessage(update.getCallbackQuery().getMessage()));
+                        execute(deletePreviousMessage(message));
 
                         InputFile imageToSend = sendPhoto.getPhoto();
                         String imageName = imageToSend.getMediaName();
@@ -102,9 +102,9 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
                 });
     }
 
-    private Mono<String> executeImageEditMethod(Router.Type type, Update update) {
-        return imageEditBotProcessorMap.get(type)
-                .process(update)
+    private Mono<String> executeImageEditMethod(Router router) {
+        return imageEditBotProcessorMap.get(router.type())
+                .process(router.data())
                 .doOnSuccess(this::logIfNullMethod)
                 .flatMap(editMessageMedia -> {
                     try {

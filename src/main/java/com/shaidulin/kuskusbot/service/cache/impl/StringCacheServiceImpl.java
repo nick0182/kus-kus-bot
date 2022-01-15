@@ -6,6 +6,7 @@ import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptValue;
+import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Permission;
 import com.shaidulin.kuskusbot.util.ImageType;
@@ -14,10 +15,7 @@ import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.SneakyThrows;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("CallingSubscribeInNonBlockingScope")
@@ -33,6 +31,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
                 .filter(Boolean.TRUE::equals);
     }
 
+    // TODO: implement scan deletion of keys
     @Override
     public Mono<Boolean> prepareUserCache(String userId) {
         String[] keysToDelete = new String[]{
@@ -173,6 +172,32 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
                 .map(cacheString -> deserializeFromCache(cacheString, ReceiptValue.class));
     }
 
+    @Override
+    public Mono<String> storeSession(String userId, UUID key, Data.Session session) {
+        return redisReactiveCommands
+                .set(composeSessionKey(userId, key), serializeToCache(session))
+                .filter(response -> response.equals("OK"));
+    }
+
+    @Override
+    public Mono<String> storeSession(String userId, Map<UUID, Data.Session> sessions) {
+        return redisReactiveCommands
+                .mset(sessions
+                        .entrySet()
+                        .stream()
+                        .collect(Collectors
+                                .toMap(
+                                        keyEntry -> composeSessionKey(userId, keyEntry.getKey()),
+                                        valueEntry -> serializeToCache(valueEntry.getValue()))));
+    }
+
+    @Override
+    public Mono<Data.Session> getSession(String userId, UUID key) {
+        return redisReactiveCommands
+                .get(composeSessionKey(userId, key))
+                .map(cacheString -> deserializeFromCache(cacheString, Data.Session.class));
+    }
+
     @SneakyThrows
     private <T> String serializeToCache(T value) {
         return objectMapper.writeValueAsString(value);
@@ -197,6 +222,10 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
 
     private String composeReceiptPresentationsMetaKey(String userId) {
         return String.join(":", userId, "receipts", "presentations", "meta");
+    }
+
+    private String composeSessionKey(String userId, UUID key) {
+        return String.join(":", userId, "session", key.toString());
     }
 
     private String composeMainImageKey(String id) {

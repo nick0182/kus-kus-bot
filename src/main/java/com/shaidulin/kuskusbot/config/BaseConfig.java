@@ -87,8 +87,8 @@ public class BaseConfig {
     }
 
     @Bean
-    BaseBotProcessor sortPageBotProcessor() {
-        return new SortPageBotProcessor();
+    BaseBotProcessor sortPageBotProcessor(StringCacheService stringCacheService) {
+        return new SortPageBotProcessor(stringCacheService);
     }
 
     @Bean

@@ -2,12 +2,13 @@ package com.shaidulin.kuskusbot.processor.base.command;
 
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
-import com.shaidulin.kuskusbot.util.ButtonConstants;
+import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.User;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 /**
  * Home page
@@ -15,18 +16,25 @@ import reactor.core.publisher.Mono;
 public record HomePageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
     @Override
-    public Mono<SendMessage> process(Update update) {
-        User user = update.getMessage().getFrom();
-        String userId = user.getId().toString();
+    public Mono<SendMessage> process(Data data) {
+        String userId = data.getUserId();
         return cacheService
                 .prepareUserCache(userId)
-                .map(ignored -> SendMessage
+                .flatMap(ignored -> compileStartSearchButton(userId))
+                .map(buttonKey -> SendMessage
                         .builder()
-                        .text("Приветствую тебя " + user.getFirstName() + " " + user.getLastName() +
+                        .text("Приветствую тебя " + data.getFirstName() + " " + data.getLastName() +
                                 "! Пожалуйста нажми кнопку \"Начать поиск\" чтобы искать рецепты")
                         .chatId(userId)
-                        .replyMarkup(ButtonConstants.startSearchKeyboard)
+                        .replyMarkup(DynamicKeyboard.createHomePageKeyboard(buttonKey))
                         .build());
+    }
+
+    private Mono<UUID> compileStartSearchButton(String userId) {
+        UUID key = UUID.randomUUID();
+        return cacheService
+                .storeSession(userId, key, Data.Session.builder().action(Data.Action.PROMPT_INGREDIENT).build())
+                .map(ignored -> key);
     }
 
     @Override

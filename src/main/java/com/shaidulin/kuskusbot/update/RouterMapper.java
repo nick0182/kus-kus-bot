@@ -1,15 +1,13 @@
 package com.shaidulin.kuskusbot.update;
 
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
-import com.shaidulin.kuskusbot.util.ButtonConstants;
-import com.shaidulin.kuskusbot.util.CallbackMapper;
-import com.shaidulin.kuskusbot.util.SortType;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.User;
 import reactor.core.publisher.Mono;
 
-import java.util.Arrays;
+import java.util.UUID;
 
 import static com.shaidulin.kuskusbot.update.Router.Method.*;
 import static com.shaidulin.kuskusbot.update.Router.Type.*;
@@ -19,61 +17,65 @@ public record RouterMapper(StringCacheService stringCacheService) {
     public Mono<Router> routeIncomingUpdate(Update update) {
         if (update.hasMessage()) {
             Message message = update.getMessage();
-            String userId = message.getFrom().getId().toString();
+            User from = message.getFrom();
+            String userId = from.getId().toString();
             if (message.isCommand() && message.getText().equals("/start")) {
-                return Mono.just(new Router(BASE, HOME_PAGE));
+                return Mono.just(new Router(BASE, HOME_PAGE, constructDataFromMessage(message)));
             }
             if (message.isUserMessage() && message.hasText() && !message.getText().equals("")) {
                 return stringCacheService
                         .checkPermission(userId, Permission.MESSAGE)
-                        .map(ignored -> new Router(BASE, INGREDIENTS_PAGE));
+                        .map(ignored -> new Router(BASE, INGREDIENTS_PAGE, constructDataFromMessage(message)));
             }
         }
         if (update.hasCallbackQuery()) {
-            CallbackMapper.Wrapper callbackWrapper = CallbackMapper.mapCallback(update.getCallbackQuery());
-            Router updateKey = identifyCallbackKey(update.getCallbackQuery());
+            CallbackQuery callbackQuery = update.getCallbackQuery();
+            String userId = callbackQuery.getFrom().getId().toString();
+            UUID key = UUID.fromString(callbackQuery.getData());
             return stringCacheService
-                    .checkPermission(callbackWrapper.userId(), Permission.CALLBACK)
-                    .map(ignored -> updateKey);
+                    .checkPermission(userId, Permission.CALLBACK)
+                    .flatMap(ignored -> stringCacheService.getSession(userId, key))
+                    .map(session -> constructDataFromCallback(callbackQuery, session))
+                    .map(this::identifyCallbackRouter);
         }
         return Mono.empty();
     }
 
-    private Router identifyCallbackKey(CallbackQuery callbackQuery) {
-        String callbackData = callbackQuery.getData();
-        if (callbackData.equals(ButtonConstants.SEARCH_RECEIPTS)) {
-            return new Router(BASE, SORT_PAGE);
-        } else if (callbackData.equals(ButtonConstants.START_SEARCH)
-                || callbackData.equals(ButtonConstants.SEARCH_NEXT_INGREDIENT)) {
-            return new Router(BASE, INGREDIENT_SEARCH_PAGE);
-        } else if (callbackData.startsWith(ButtonConstants.RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX)) {
-            callbackQuery.setData(resolveReceiptWithIngredientsPage(callbackData));
-            return new Router(BASE, RECEIPT_WITH_INGREDIENTS_PAGE);
-        } else if (callbackData.startsWith(ButtonConstants.RECEIPT_WITH_NUTRITION_OVERVIEW_PAYLOAD_PREFIX)) {
-            callbackQuery.setData(resolveReceiptWithNutritionOverviewPage(callbackData));
-            return new Router(BASE, RECEIPT_WITH_NUTRITION_OVERVIEW_PAGE);
-        } else if (callbackData.startsWith(ButtonConstants.INGREDIENTS_PAGE_PAYLOAD_PREFIX)) {
-            callbackQuery.setData(resolvePage(callbackData));
-            return new Router(BASE, INGREDIENTS_PAGINATED);
-        } else if (callbackData.startsWith(ButtonConstants.RECEIPTS_PAGE_PAYLOAD_PREFIX)) {
-            callbackQuery.setData(resolvePage(callbackData));
-            return new Router(IMAGE_EDIT, RECEIPT_PRESENTATION_PAGINATED);
-        } else if (Arrays.stream(SortType.values()).anyMatch(sortType -> sortType.name().equals(callbackData))) {
-            return new Router(IMAGE_SEND, RECEIPT_PRESENTATION_PAGE);
-        } else {
-            return new Router(BASE, INGREDIENT_SELECTION);
-        }
+    private Data constructDataFromMessage(Message message) {
+        User from = message.getFrom();
+        return Data.builder()
+                .userId(from.getId().toString())
+                .firstName(from.getFirstName())
+                .lastName(from.getLastName())
+                .chatId(message.getChatId().toString())
+                .messageId(message.getMessageId())
+                .input(message.getText())
+                .build();
     }
 
-    private String resolvePage(String callbackData) {
-        return callbackData.split("_")[1];
+    private Data constructDataFromCallback(CallbackQuery query, Data.Session session) {
+        User from = query.getFrom();
+        return Data.builder()
+                .userId(from.getId().toString())
+                .firstName(from.getFirstName())
+                .lastName(from.getLastName())
+                .chatId(query.getMessage().getChatId().toString())
+                .messageId(query.getMessage().getMessageId())
+                .session(session)
+                .build();
     }
 
-    private String resolveReceiptWithIngredientsPage(String callbackData) {
-        return callbackData.replace(ButtonConstants.RECEIPT_WITH_INGREDIENTS_PAGE_PAYLOAD_PREFIX + "_", "");
-    }
-
-    private String resolveReceiptWithNutritionOverviewPage(String callbackData) {
-        return callbackData.replace(ButtonConstants.RECEIPT_WITH_NUTRITION_OVERVIEW_PAYLOAD_PREFIX + "_", "");
+    private Router identifyCallbackRouter(Data data) {
+        return switch (data.getSession().getAction()) {
+            case PROMPT_INGREDIENT -> new Router(BASE, INGREDIENT_SEARCH_PAGE, data);
+            case SHOW_INGREDIENTS_PAGE -> new Router(BASE, INGREDIENTS_PAGINATED, data);
+            case SHOW_SEARCH_CONFIGURATION_OPTIONS -> new Router(BASE, INGREDIENT_SELECTION, data);
+            case SHOW_SORT_OPTIONS -> new Router(BASE, SORT_PAGE, data);
+            case SHOW_RECEIPT_PRESENTATION_INITIAL_PAGE -> new Router(IMAGE_SEND, RECEIPT_PRESENTATION_PAGE, data);
+            case SHOW_RECEIPT_PRESENTATION_PAGE -> new Router(IMAGE_EDIT, RECEIPT_PRESENTATION_PAGINATED, data);
+            case SHOW_RECEIPT_INGREDIENTS_PAGE -> new Router(BASE, RECEIPT_WITH_INGREDIENTS_PAGE, data);
+            case SHOW_RECEIPT_NUTRITION_PAGE -> new Router(BASE, RECEIPT_WITH_NUTRITION_OVERVIEW_PAGE, data);
+            case SHOW_STEP_PAGE -> new Router(BASE, RECEIPT_WITH_NUTRITION_OVERVIEW_PAGE, data);
+        };
     }
 }

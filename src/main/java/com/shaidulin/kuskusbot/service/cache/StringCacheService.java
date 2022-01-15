@@ -5,13 +5,12 @@ import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptValue;
+import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Permission;
 import com.shaidulin.kuskusbot.util.ImageType;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 public interface StringCacheService {
 
@@ -44,4 +43,10 @@ public interface StringCacheService {
     Mono<Boolean> storeReceipt(String userId, ReceiptValue receipt);
 
     Mono<ReceiptValue> getReceipt(String userId);
+
+    Mono<String> storeSession(String userId, UUID key, Data.Session session);
+
+    Mono<String> storeSession(String userId, Map<UUID, Data.Session> sessions);
+
+    Mono<Data.Session> getSession(String userId, UUID key);
 }
