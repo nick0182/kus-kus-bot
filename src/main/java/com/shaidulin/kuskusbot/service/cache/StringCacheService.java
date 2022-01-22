@@ -20,11 +20,11 @@ public interface StringCacheService {
 
     Mono<String> startSearch(String userId);
 
-    Mono<Boolean> storeIngredientSuggestions(String userId, Set<IngredientValue> ingredients);
+    Mono<Boolean> storeIngredientSuggestions(String userId, TreeSet<IngredientValue> ingredients);
 
     Mono<Boolean> storeIngredient(String userId, String ingredient);
 
-    Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId);
+    Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId, int from);
 
     Mono<List<String>> getIngredients(String userId);
 
@@ -44,9 +44,7 @@ public interface StringCacheService {
 
     Mono<ReceiptValue> getReceipt(String userId);
 
-    Mono<String> storeSession(String userId, UUID key, Data.Session session);
+    Mono<Long> storeSession(String userId, Map<Integer, Data.Session> sessionHash);
 
-    Mono<String> storeSession(String userId, Map<UUID, Data.Session> sessions);
-
-    Mono<Data.Session> getSession(String userId, UUID key);
+    Mono<Data.Session> getSession(String userId, String sessionId);
 }

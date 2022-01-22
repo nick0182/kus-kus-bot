@@ -6,10 +6,11 @@ import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuples;
 
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Shows chosen ingredients and offers:
@@ -24,11 +25,7 @@ public record IngredientSelectionBotProcessor(StringCacheService cacheService) i
         return cacheService
                 .storeIngredient(userId, data.getSession().getIngredientName())
                 .flatMap(ignored -> cacheService.getIngredients(userId))
-                .zipWith(compileButton(userId, Data.Action.SHOW_SORT_OPTIONS))
-                .zipWhen(tuple2 -> compileButton(userId, Data.Action.PROMPT_INGREDIENT),
-                        (tuple2, buttonKey) ->
-                                Tuples.of(tuple2.getT1(),
-                                        DynamicKeyboard.createIngredientSelectionKeyboard(tuple2.getT2(), buttonKey)))
+                .zipWith(compileButtons(userId))
                 .map(tuple2 -> EditMessageText
                         .builder()
                         .chatId(data.getChatId())
@@ -39,11 +36,18 @@ public record IngredientSelectionBotProcessor(StringCacheService cacheService) i
                 );
     }
 
-    private Mono<UUID> compileButton(String userId, Data.Action action) {
-        UUID key = UUID.randomUUID();
+    private Mono<InlineKeyboardMarkup> compileButtons(String userId) {
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        Map<Integer, Data.Session> sessionHash = new HashMap<>();
+        int buttonIndex = 0;
+        buttons.add(DynamicKeyboard.createButtonRow("Искать!", String.valueOf(buttonIndex)));
+        sessionHash.put(buttonIndex, Data.Session.builder().action(Data.Action.SHOW_SORT_OPTIONS).build());
+        buttonIndex++;
+        buttons.add(DynamicKeyboard.createButtonRow( "Добавить ингредиент", String.valueOf(buttonIndex)));
+        sessionHash.put(buttonIndex, Data.Session.builder().action(Data.Action.PROMPT_INGREDIENT).build());
         return cacheService
-                .storeSession(userId, key, Data.Session.builder().action(action).build())
-                .map(ignored -> key);
+                .storeSession(userId, sessionHash)
+                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
     }
 
     @Override

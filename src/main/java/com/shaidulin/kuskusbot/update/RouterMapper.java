@@ -7,8 +7,6 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import reactor.core.publisher.Mono;
 
-import java.util.UUID;
-
 import static com.shaidulin.kuskusbot.update.Router.Method.*;
 import static com.shaidulin.kuskusbot.update.Router.Type.*;
 
@@ -31,10 +29,10 @@ public record RouterMapper(StringCacheService stringCacheService) {
         if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String userId = callbackQuery.getFrom().getId().toString();
-            UUID key = UUID.fromString(callbackQuery.getData());
+            String sessionId = callbackQuery.getData();
             return stringCacheService
                     .checkPermission(userId, Permission.CALLBACK)
-                    .flatMap(ignored -> stringCacheService.getSession(userId, key))
+                    .flatMap(ignored -> stringCacheService.getSession(userId, sessionId))
                     .map(session -> constructDataFromCallback(callbackQuery, session))
                     .map(this::identifyCallbackRouter);
         }

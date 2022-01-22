@@ -6,29 +6,27 @@ import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
+import org.springframework.util.CollectionUtils;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TreeSet;
-import java.util.UUID;
-
-import static com.shaidulin.kuskusbot.util.keyboard.ButtonConstants.INGREDIENTS_PAGE_SIZE;
+import java.util.*;
 
 /**
  * Shows a paginated offering of 3 possible ingredients
  */
 public record IngredientsPaginatedBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
+    private static final int INGREDIENTS_PAGE_SIZE = 3;
+
     @Override
     public Mono<EditMessageReplyMarkup> process(Data data) {
+        int page = data.getSession().getCurrentIngredientsPage();
         return cacheService
-                .getIngredientSuggestions(data.getUserId())
-                .flatMap(ingredients -> compileIngredientButtons(data, ingredients))
-                .zipWith(compilePreviousPageButton(data))
-                .zipWhen(tuple2 -> compileNextPageButton(tuple2.getT1().size(), data),
-                        (tuple2, buttonKey) -> DynamicKeyboard.createSuggestionsKeyboard(tuple2.getT1(), tuple2.getT2(), buttonKey))
+                .getIngredientSuggestions(data.getUserId(), page * INGREDIENTS_PAGE_SIZE)
+                .flatMap(ingredients -> compileIngredientButtons(data.getUserId(), page, ingredients))
                 .map(ingredientsKeyboard -> EditMessageReplyMarkup
                         .builder()
                         .chatId(data.getChatId())
@@ -37,60 +35,50 @@ public record IngredientsPaginatedBotProcessor(StringCacheService cacheService) 
                         .build());
     }
 
-    private Mono<Map<String, UUID>> compileIngredientButtons(Data data, TreeSet<IngredientValue> ingredients) {
-        long shownCount = (long) data.getSession().getCurrentIngredientsPage() * INGREDIENTS_PAGE_SIZE;
+    private Mono<InlineKeyboardMarkup> compileIngredientButtons(String userId, int page, TreeSet<IngredientValue> ingredients) {
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        Map<Integer, Data.Session> sessionHash = new HashMap<>();
+        int buttonCurrentIndex = -1;
 
-        Map<String, UUID> ingredientButtons = new LinkedHashMap<>();
-        Map<UUID, Data.Session> sessions = new LinkedHashMap<>();
-        ingredients
-                .stream()
-                .skip(shownCount)
-                .limit(INGREDIENTS_PAGE_SIZE)
-                .forEach(ingredient -> {
-                    UUID key = UUID.randomUUID();
-                    String name = ingredient.name();
-                    int count = ingredient.count();
-                    ingredientButtons.put(String.join(" - ", name, String.valueOf(count)), key);
-                    sessions.put(key, Data.Session
-                            .builder()
-                            .action(Data.Action.SHOW_SEARCH_CONFIGURATION_OPTIONS)
-                            .ingredientName(name)
-                            .build());
-                });
-        return cacheService.storeSession(data.getUserId(), sessions).map(ignored -> ingredientButtons);
-    }
+        IngredientValue ingredient;
+        while ((ingredient = ingredients.pollFirst()) != null && ++buttonCurrentIndex < 3) {
+            String name = ingredient.name();
+            int count = ingredient.count();
+            String text = String.join(" - ", name, String.valueOf(count));
+            buttons.add(DynamicKeyboard.createButtonRow(text, String.valueOf(buttonCurrentIndex)));
+            sessionHash.put(buttonCurrentIndex, Data.Session
+                    .builder()
+                    .action(Data.Action.SHOW_SEARCH_CONFIGURATION_OPTIONS)
+                    .ingredientName(name)
+                    .build());
+        }
 
-    private Mono<UUID> compilePreviousPageButton(Data data) {
-        int page = data.getSession().getCurrentIngredientsPage();
-        if (page > 0) {
-            UUID key = UUID.randomUUID();
-            Data.Session session = Data.Session
+        Integer previousPageButtonIndex = null;
+        Integer nextPageButtonIndex = null;
+
+        if (page != 0) {
+            previousPageButtonIndex = buttonCurrentIndex;
+            sessionHash.put(previousPageButtonIndex, Data.Session
                     .builder()
                     .action(Data.Action.SHOW_INGREDIENTS_PAGE)
                     .currentIngredientsPage(page - 1)
-                    .build();
-            return cacheService.storeSession(data.getUserId(), key, session).map(ignored -> key);
-        } else {
-            return Mono.just(DynamicKeyboard.NULL_KEY_UUID);
+                    .build());
         }
-    }
 
-    private Mono<UUID> compileNextPageButton(int ingredientsCount, Data data) {
-        int page = data.getSession().getCurrentIngredientsPage();
-        long shownCount = (long) page * INGREDIENTS_PAGE_SIZE;
-        if (ingredientsCount > shownCount + INGREDIENTS_PAGE_SIZE) {
-            UUID key = UUID.randomUUID();
-            Data.Session session = Data.Session
+        if (!CollectionUtils.isEmpty(ingredients)) {
+            nextPageButtonIndex = ++buttonCurrentIndex;
+            sessionHash.put(nextPageButtonIndex, Data.Session
                     .builder()
                     .action(Data.Action.SHOW_INGREDIENTS_PAGE)
                     .currentIngredientsPage(page + 1)
-                    .build();
-            return cacheService
-                    .storeSession(data.getUserId(), key, session)
-                    .map(ignored -> key);
-        } else {
-            return Mono.just(DynamicKeyboard.NULL_KEY_UUID);
+                    .build());
         }
+
+        buttons.add(DynamicKeyboard.createNavigationPanelRow(previousPageButtonIndex, nextPageButtonIndex));
+
+        return cacheService
+                .storeSession(userId, sessionHash)
+                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
     }
 
     @Override

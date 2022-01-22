@@ -17,11 +17,10 @@ import org.springframework.core.io.ByteArrayResource;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuples;
 
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Shows the first page of receipt presentation
@@ -44,15 +43,8 @@ public record ReceiptPresentationPageBotProcessor(StringCacheService cacheServic
                 .filterWhen(receiptPresentationMatch -> cacheService
                         .storeReceiptPresentations(data.getUserId(), receiptPresentationMatch))
                 .map(ReceiptPresentationMatch::receipts)
-                .zipWhen(receiptPresentations -> compileNextPageButton(data, receiptPresentations.size() > 1))
-                .zipWhen(tuple2 -> compileReceiptIngredientsButton(data, tuple2.getT1().get(0).queryParam()),
-                        (tuple2, receiptIngredientsButtonKey) ->
-                                Tuples.of(tuple2.getT1().get(0),
-                                        DynamicKeyboard.createReceiptPresentationKeyboard(
-                                                receiptIngredientsButtonKey,
-                                                DynamicKeyboard.NULL_KEY_UUID,
-                                                tuple2.getT2())))
-                .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data.getChatId(), tuple2.getT2()));
+                .zipWhen(receipts -> compileReceiptIngredientsButton(data, receipts.get(0).queryParam(), receipts.size() > 1))
+                .flatMap(tuple2 -> provideMessage(tuple2.getT1().get(0), data.getChatId(), tuple2.getT2()));
     }
 
     private Mono<SendPhoto> provideMessage(ReceiptPresentationValue receiptPresentation,
@@ -94,37 +86,34 @@ public record ReceiptPresentationPageBotProcessor(StringCacheService cacheServic
                 .build();
     }
 
-    private Mono<UUID> compileReceiptIngredientsButton(Data data, int receiptId) {
+    private Mono<InlineKeyboardMarkup> compileReceiptIngredientsButton(Data data, int receiptId, boolean hasMoreReceipts) {
         Data.Session currentSession = data.getSession();
-        UUID key = UUID.randomUUID();
-        Data.Session session = Data.Session
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        Map<Integer, Data.Session> sessionHash = new HashMap<>();
+        int buttonCurrentIndex = 0;
+        buttons.add(DynamicKeyboard.createButtonRow("Ингредиенты", String.valueOf(buttonCurrentIndex)));
+        sessionHash.put(buttonCurrentIndex, Data.Session
                 .builder()
                 .action(Data.Action.SHOW_RECEIPT_INGREDIENTS_PAGE)
                 .receiptSortType(currentSession.getReceiptSortType())
                 .receiptId(receiptId)
                 .currentReceiptPage(0)
-                .build();
-        return cacheService
-                .storeSession(data.getUserId(), key, session)
-                .map(ignored -> key);
-    }
+                .build());
 
-    private Mono<UUID> compileNextPageButton(Data data, boolean hasMoreReceipts) {
         if (hasMoreReceipts) {
-            Data.Session currentSession = data.getSession();
-            UUID key = UUID.randomUUID();
-            Data.Session session = Data.Session
+            buttonCurrentIndex++;
+            buttons.add(DynamicKeyboard.createNavigationPanelRow(null, buttonCurrentIndex));
+            sessionHash.put(buttonCurrentIndex, Data.Session
                     .builder()
                     .action(Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE)
                     .receiptSortType(currentSession.getReceiptSortType())
                     .currentReceiptPage(1)
-                    .build();
-            return cacheService
-                    .storeSession(data.getUserId(), key, session)
-                    .map(ignored -> key);
-        } else {
-            return Mono.just(DynamicKeyboard.NULL_KEY_UUID);
+                    .build());
         }
+
+        return cacheService
+                .storeSession(data.getUserId(), sessionHash)
+                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
     }
 
     @Override

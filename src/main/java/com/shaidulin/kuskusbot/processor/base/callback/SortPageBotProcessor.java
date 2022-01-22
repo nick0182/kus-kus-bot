@@ -7,9 +7,13 @@ import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.util.SortType;
 import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
 
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Shows receipt sort options
@@ -19,7 +23,6 @@ public record SortPageBotProcessor(StringCacheService cacheService) implements B
     @Override
     public Mono<EditMessageReplyMarkup> process(Data data) {
         return compileSortAccurateChoiceButton(data.getUserId())
-                .map(DynamicKeyboard::createSortOptionsChoiceKeyboard)
                 .map(keyboard -> EditMessageReplyMarkup
                         .builder()
                         .chatId(data.getChatId())
@@ -28,14 +31,17 @@ public record SortPageBotProcessor(StringCacheService cacheService) implements B
                         .build());
     }
 
-    private Mono<UUID> compileSortAccurateChoiceButton(String userId) {
-        UUID key = UUID.randomUUID();
-        Data.Session session = Data.Session
-                .builder()
-                .action(Data.Action.SHOW_RECEIPT_PRESENTATION_INITIAL_PAGE)
-                .receiptSortType(SortType.ACCURACY)
-                .build();
-        return cacheService.storeSession(userId, key, session).map(ignored -> key);
+    private Mono<InlineKeyboardMarkup> compileSortAccurateChoiceButton(String userId) {
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        int buttonIndex = 0;
+        buttons.add(DynamicKeyboard.createButtonRow("Самые точные", String.valueOf(buttonIndex)));
+        return cacheService
+                .storeSession(userId, Map.of(buttonIndex, Data.Session
+                        .builder()
+                        .action(Data.Action.SHOW_RECEIPT_PRESENTATION_INITIAL_PAGE)
+                        .receiptSortType(SortType.ACCURACY)
+                        .build()))
+                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
     }
 
     @Override

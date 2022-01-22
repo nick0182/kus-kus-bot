@@ -19,13 +19,10 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMe
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Shows a paginated receipt presentation
@@ -48,26 +45,12 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
                     if (currentBatch < meta.batch()) { // get previous batch
                         return getReceiptsAndStoreInCache(userId, new Page(page + 1 - receiptPageSize, receiptPageSize), meta.sortType())
                                 .map(receiptPresentations -> receiptPresentations.get(receiptPresentations.size() - 1))
-                                .zipWhen(receiptPresentation -> compileReceiptIngredientsButton(data, receiptPresentation.queryParam()))
-                                .zipWith(compilePreviousPageButton(data))
-                                .zipWith(compileNextPageButton(data, true), this::unpackToTuple2)
+                                .zipWhen(receiptPresentation -> compileReceiptIngredientsButton(data, receiptPresentation.queryParam(), true))
                                 .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data, tuple2.getT2()));
                     } else if (currentBatch > meta.batch()) { // get next batch
                         return getReceiptsAndStoreInCache(userId, new Page(page, receiptPageSize), meta.sortType())
-                                .zipWhen(receiptPresentations -> compileReceiptIngredientsButton(data, receiptPresentations.get(0).queryParam()))
-                                .zipWith(compilePreviousPageButton(data))
-                                .zipWhen(tuple2OfTuple2 -> compileNextPageButton(data, tuple2OfTuple2.getT1().getT1().size() > 1),
-                                        (tuple2OfTuple2, nextPageButtonKey) -> {
-                                            List<ReceiptPresentationValue> receiptPresentations = tuple2OfTuple2.getT1().getT1();
-                                            InlineKeyboardMarkup keyboard =
-                                                    DynamicKeyboard
-                                                            .createReceiptPresentationKeyboard(
-                                                                    tuple2OfTuple2.getT1().getT2(),
-                                                                    tuple2OfTuple2.getT2(),
-                                                                    nextPageButtonKey);
-                                            return Tuples.of(receiptPresentations.get(0), keyboard);
-                                        })
-                                .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data, tuple2.getT2()));
+                                .zipWhen(receiptPresentations -> compileReceiptIngredientsButton(data, receiptPresentations.get(0).queryParam(), receiptPresentations.size() > 1))
+                                .flatMap(tuple2 -> provideMessage(tuple2.getT1().get(0), data, tuple2.getT2()));
                     } else { // get from current cache
                         if (cacheIndex == 0) {
                             return getFromCache(data, cacheIndex, true);
@@ -83,32 +66,10 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
                 });
     }
 
-    private Tuple2<ReceiptPresentationValue, InlineKeyboardMarkup> unpackToTuple2(
-            Tuple2<Tuple2<ReceiptPresentationValue, UUID>, UUID> tuple2OfTuple2,
-            UUID nextPageButtonKey) {
-        ReceiptPresentationValue receiptPresentation = tuple2OfTuple2.getT1().getT1();
-        InlineKeyboardMarkup keyboard =
-                DynamicKeyboard
-                        .createReceiptPresentationKeyboard(
-                                tuple2OfTuple2.getT1().getT2(),
-                                tuple2OfTuple2.getT2(),
-                                nextPageButtonKey);
-        return Tuples.of(receiptPresentation, keyboard);
-    }
-
     private Mono<EditMessageMedia> getFromCache(Data data, int cacheIndex, boolean hasMoreReceipts) {
         return cacheService
                 .getReceiptPresentation(data.getUserId(), cacheIndex)
-                .zipWhen(receiptPresentation -> compileReceiptIngredientsButton(data, receiptPresentation.queryParam()))
-                .zipWith(compilePreviousPageButton(data))
-                .zipWith(compileNextPageButton(data, hasMoreReceipts),
-                        (tuple2OfTuple2, nextPageButtonKey) ->
-                                Tuples.of(
-                                        tuple2OfTuple2.getT1().getT1(),
-                                        DynamicKeyboard.createReceiptPresentationKeyboard(
-                                                tuple2OfTuple2.getT1().getT2(),
-                                                tuple2OfTuple2.getT2(),
-                                                nextPageButtonKey)))
+                .zipWhen(receiptPresentation -> compileReceiptIngredientsButton(data, receiptPresentation.queryParam(), hasMoreReceipts))
                 .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data, tuple2.getT2()));
     }
 
@@ -162,56 +123,50 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
                 .build();
     }
 
-    private Mono<UUID> compileReceiptIngredientsButton(Data data, int receiptId) {
-        Data.Session currentSession = data.getSession();
-        UUID key = UUID.randomUUID();
-        Data.Session session = Data.Session
-                .builder()
-                .action(Data.Action.SHOW_RECEIPT_INGREDIENTS_PAGE)
-                .receiptSortType(currentSession.getReceiptSortType())
-                .receiptId(receiptId)
-                .currentReceiptPage(currentSession.getCurrentReceiptPage())
-                .build();
-        return cacheService
-                .storeSession(data.getUserId(), key, session)
-                .map(ignored -> key);
-    }
-
-    private Mono<UUID> compilePreviousPageButton(Data data) {
+    private Mono<InlineKeyboardMarkup> compileReceiptIngredientsButton(Data data, int receiptId, boolean hasMoreReceipts) {
         Data.Session currentSession = data.getSession();
         int currentReceiptPage = currentSession.getCurrentReceiptPage();
-        if (currentReceiptPage > 0) {
-            UUID key = UUID.randomUUID();
-            Data.Session session = Data.Session
-                    .builder()
-                    .action(Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE)
-                    .receiptSortType(currentSession.getReceiptSortType())
-                    .currentReceiptPage(currentReceiptPage - 1)
-                    .build();
-            return cacheService
-                    .storeSession(data.getUserId(), key, session)
-                    .map(ignored -> key);
-        } else {
-            return Mono.just(DynamicKeyboard.NULL_KEY_UUID);
-        }
-    }
+        SortType receiptSortType = currentSession.getReceiptSortType();
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        Map<Integer, Data.Session> sessionHash = new HashMap<>();
+        int buttonCurrentIndex = 0;
+        buttons.add(DynamicKeyboard.createButtonRow("Ингредиенты", String.valueOf(buttonCurrentIndex)));
+        sessionHash.put(buttonCurrentIndex, Data.Session
+                .builder()
+                .action(Data.Action.SHOW_RECEIPT_INGREDIENTS_PAGE)
+                .receiptSortType(receiptSortType)
+                .receiptId(receiptId)
+                .currentReceiptPage(currentReceiptPage)
+                .build());
 
-    private Mono<UUID> compileNextPageButton(Data data, boolean hasMoreReceipts) {
-        if (hasMoreReceipts) {
-            Data.Session currentSession = data.getSession();
-            UUID key = UUID.randomUUID();
-            Data.Session session = Data.Session
+        Integer previousPageButtonIndex = null;
+        Integer nextPageButtonIndex = null;
+
+        if (currentReceiptPage > 0) {
+            previousPageButtonIndex = ++buttonCurrentIndex;
+            sessionHash.put(previousPageButtonIndex, Data.Session
                     .builder()
                     .action(Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE)
-                    .receiptSortType(currentSession.getReceiptSortType())
-                    .currentReceiptPage(currentSession.getCurrentReceiptPage() + 1)
-                    .build();
-            return cacheService
-                    .storeSession(data.getUserId(), key, session)
-                    .map(ignored -> key);
-        } else {
-            return Mono.just(DynamicKeyboard.NULL_KEY_UUID);
+                    .receiptSortType(receiptSortType)
+                    .currentReceiptPage(currentReceiptPage - 1)
+                    .build());
         }
+
+        if (hasMoreReceipts) {
+            nextPageButtonIndex = ++buttonCurrentIndex;
+            sessionHash.put(nextPageButtonIndex, Data.Session
+                    .builder()
+                    .action(Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE)
+                    .receiptSortType(receiptSortType)
+                    .currentReceiptPage(currentReceiptPage + 1)
+                    .build());
+        }
+
+        buttons.add(DynamicKeyboard.createNavigationPanelRow(previousPageButtonIndex, nextPageButtonIndex));
+
+        return cacheService
+                .storeSession(data.getUserId(), sessionHash)
+                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
     }
 
     @Override

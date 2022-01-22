@@ -6,15 +6,13 @@ import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
-import com.shaidulin.kuskusbot.util.keyboard.ButtonConstants;
 import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuples;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -32,36 +30,41 @@ public record ReceiptIngredientsPageBotProcessor(StringCacheService cacheService
                 .switchIfEmpty(receiptService
                         .getReceipt(receiptId)
                         .filterWhen(receipt -> cacheService.storeReceipt(data.getUserId(), receipt)))
-                .zipWith(compileButton(data, Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE))
-                .zipWith(compileButton(data, Data.Action.SHOW_RECEIPT_NUTRITION_PAGE))
-                .zipWith(compileButton(data, Data.Action.SHOW_STEP_PAGE),
-                        (tuple2OfTuple2, stepButtonKey) -> Tuples.of(
-                                tuple2OfTuple2.getT1().getT1().ingredients(),
-                                DynamicKeyboard.createReceiptKeyboard(
-                                        tuple2OfTuple2.getT1().getT2(),
-                                        Map.of(ButtonConstants.SHOW_NUTRITION_OVERVIEW, tuple2OfTuple2.getT2(),
-                                                ButtonConstants.SHOW_STEPS, stepButtonKey))))
+                .zipWith(compileButtons(data))
                 .map(tuple2 -> EditMessageCaption.builder()
                         .chatId(data.getChatId())
                         .messageId(data.getMessageId())
-                        .caption(createIngredientsCaption(tuple2.getT1()))
+                        .caption(createIngredientsCaption(tuple2.getT1().ingredients()))
                         .replyMarkup(tuple2.getT2())
                         .build());
     }
 
-    private Mono<UUID> compileButton(Data data, Data.Action action) {
+    private Mono<InlineKeyboardMarkup> compileButtons(Data data) {
         Data.Session currentSession = data.getSession();
-        UUID key = UUID.randomUUID();
-        Data.Session session = Data.Session
+        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        Map<Integer, Data.Session> sessionHash = new HashMap<>();
+        int buttonIndex = 0;
+        buttons.add(DynamicKeyboard.createButtonRow( "Энергетическая ценность", String.valueOf(buttonIndex)));
+        sessionHash.put(buttonIndex, createNewSession(currentSession, Data.Action.SHOW_RECEIPT_NUTRITION_PAGE));
+        buttonIndex++;
+        buttons.add(DynamicKeyboard.createButtonRow( "Как готовить", String.valueOf(buttonIndex)));
+        sessionHash.put(buttonIndex, createNewSession(currentSession, Data.Action.SHOW_STEP_PAGE));
+        buttonIndex++;
+        buttons.add(DynamicKeyboard.createButtonRow( "↩", String.valueOf(buttonIndex)));
+        sessionHash.put(buttonIndex, createNewSession(currentSession, Data.Action.SHOW_RECEIPT_PRESENTATION_PAGE));
+        return cacheService
+                .storeSession(data.getUserId(), sessionHash)
+                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
+    }
+
+    private Data.Session createNewSession(Data.Session currentSession, Data.Action action) {
+        return Data.Session
                 .builder()
                 .action(action)
                 .receiptSortType(currentSession.getReceiptSortType())
                 .receiptId(currentSession.getReceiptId())
                 .currentReceiptPage(currentSession.getCurrentReceiptPage())
                 .build();
-        return cacheService
-                .storeSession(data.getUserId(), key, session)
-                .map(ignored -> key);
     }
 
     private String createIngredientsCaption(List<Ingredient> ingredients) {
