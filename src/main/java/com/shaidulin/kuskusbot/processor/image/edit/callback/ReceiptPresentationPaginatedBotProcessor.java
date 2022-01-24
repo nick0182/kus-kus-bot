@@ -45,11 +45,11 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
                     if (currentBatch < meta.batch()) { // get previous batch
                         return getReceiptsAndStoreInCache(userId, new Page(page + 1 - receiptPageSize, receiptPageSize), meta.sortType())
                                 .map(receiptPresentations -> receiptPresentations.get(receiptPresentations.size() - 1))
-                                .zipWhen(receiptPresentation -> compileReceiptIngredientsButton(data, receiptPresentation.queryParam(), true))
+                                .zipWhen(receiptPresentation -> compileReceiptIngredientsButtons(data, receiptPresentation.queryParam(), true))
                                 .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data, tuple2.getT2()));
                     } else if (currentBatch > meta.batch()) { // get next batch
                         return getReceiptsAndStoreInCache(userId, new Page(page, receiptPageSize), meta.sortType())
-                                .zipWhen(receiptPresentations -> compileReceiptIngredientsButton(data, receiptPresentations.get(0).queryParam(), receiptPresentations.size() > 1))
+                                .zipWhen(receiptPresentations -> compileReceiptIngredientsButtons(data, receiptPresentations.get(0).queryParam(), receiptPresentations.size() > 1))
                                 .flatMap(tuple2 -> provideMessage(tuple2.getT1().get(0), data, tuple2.getT2()));
                     } else { // get from current cache
                         if (cacheIndex == 0) {
@@ -69,7 +69,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
     private Mono<EditMessageMedia> getFromCache(Data data, int cacheIndex, boolean hasMoreReceipts) {
         return cacheService
                 .getReceiptPresentation(data.getUserId(), cacheIndex)
-                .zipWhen(receiptPresentation -> compileReceiptIngredientsButton(data, receiptPresentation.queryParam(), hasMoreReceipts))
+                .zipWhen(receiptPresentation -> compileReceiptIngredientsButtons(data, receiptPresentation.queryParam(), hasMoreReceipts))
                 .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data, tuple2.getT2()));
     }
 
@@ -123,7 +123,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
                 .build();
     }
 
-    private Mono<InlineKeyboardMarkup> compileReceiptIngredientsButton(Data data, int receiptId, boolean hasMoreReceipts) {
+    private Mono<InlineKeyboardMarkup> compileReceiptIngredientsButtons(Data data, int receiptId, boolean hasMoreReceipts) {
         Data.Session currentSession = data.getSession();
         int currentReceiptPage = currentSession.getCurrentReceiptPage();
         SortType receiptSortType = currentSession.getReceiptSortType();

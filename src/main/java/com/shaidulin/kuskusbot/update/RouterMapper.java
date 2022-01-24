@@ -73,7 +73,7 @@ public record RouterMapper(StringCacheService stringCacheService) {
             case SHOW_RECEIPT_PRESENTATION_PAGE -> new Router(IMAGE_EDIT, RECEIPT_PRESENTATION_PAGINATED, data);
             case SHOW_RECEIPT_INGREDIENTS_PAGE -> new Router(BASE, RECEIPT_WITH_INGREDIENTS_PAGE, data);
             case SHOW_RECEIPT_NUTRITION_PAGE -> new Router(BASE, RECEIPT_WITH_NUTRITION_OVERVIEW_PAGE, data);
-            case SHOW_STEP_PAGE -> new Router(BASE, RECEIPT_WITH_NUTRITION_OVERVIEW_PAGE, data);
+            case SHOW_STEP_PAGE -> new Router(IMAGE_EDIT, RECEIPT_STEP_PAGINATED, data);
         };
     }
 }

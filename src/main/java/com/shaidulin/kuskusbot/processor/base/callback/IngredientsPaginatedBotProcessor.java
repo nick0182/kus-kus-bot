@@ -13,6 +13,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 /**
  * Shows a paginated offering of 3 possible ingredients
@@ -25,7 +26,7 @@ public record IngredientsPaginatedBotProcessor(StringCacheService cacheService) 
     public Mono<EditMessageReplyMarkup> process(Data data) {
         int page = data.getSession().getCurrentIngredientsPage();
         return cacheService
-                .getIngredientSuggestions(data.getUserId(), page * INGREDIENTS_PAGE_SIZE)
+                .getIngredientSuggestions(data.getUserId())
                 .flatMap(ingredients -> compileIngredientButtons(data.getUserId(), page, ingredients))
                 .map(ingredientsKeyboard -> EditMessageReplyMarkup
                         .builder()
@@ -39,9 +40,14 @@ public record IngredientsPaginatedBotProcessor(StringCacheService cacheService) 
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
         Map<Integer, Data.Session> sessionHash = new HashMap<>();
         int buttonCurrentIndex = -1;
+        int shownCount = page * INGREDIENTS_PAGE_SIZE;
+        if (shownCount != 0) {
+            // skip previous page(s)
+            IntStream.range(0, shownCount).forEach(index -> ingredients.pollFirst());
+        }
 
         IngredientValue ingredient;
-        while ((ingredient = ingredients.pollFirst()) != null && ++buttonCurrentIndex < 3) {
+        while ((ingredient = ingredients.pollFirst()) != null && ++buttonCurrentIndex < INGREDIENTS_PAGE_SIZE) {
             String name = ingredient.name();
             int count = ingredient.count();
             String text = String.join(" - ", name, String.valueOf(count));

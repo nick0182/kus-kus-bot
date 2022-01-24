@@ -1,6 +1,7 @@
 package com.shaidulin.kuskusbot.service.api;
 
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
+import com.shaidulin.kuskusbot.dto.receipt.Step;
 import com.shaidulin.kuskusbot.util.ImageType;
 import org.springframework.lang.NonNull;
 import org.threeten.extra.AmountFormats;
@@ -25,5 +26,9 @@ public interface ImageService {
         return "\uD83C\uDF72 " + receiptPresentation.name() + "\n" +
                 "⏱ " + cookTimeString + "\n" +
                 "Количество порций " + portionsString;
+    }
+
+    default String createPhotoCaption(Step step) {
+        return step.number() + ".\n" + step.text();
     }
 }

@@ -24,7 +24,7 @@ public interface StringCacheService {
 
     Mono<Boolean> storeIngredient(String userId, String ingredient);
 
-    Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId, int from);
+    Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId);
 
     Mono<List<String>> getIngredients(String userId);
 

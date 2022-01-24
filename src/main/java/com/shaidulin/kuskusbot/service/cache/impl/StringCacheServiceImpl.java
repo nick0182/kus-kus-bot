@@ -84,9 +84,9 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId, int from) {
+    public Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId) {
         return redisReactiveCommands
-                .zrevrangeWithScores(composeKey(userId, "suggestions"), from, -1)
+                .zrevrangeWithScores(composeKey(userId, "suggestions"), 0, -1)
                 .collect(
                         Collectors.mapping(
                                 scoredValue -> new IngredientValue(scoredValue.getValue(), (int) scoredValue.getScore()),

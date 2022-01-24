@@ -8,6 +8,7 @@ import com.shaidulin.kuskusbot.processor.base.command.HomePageBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.text.IngredientsPageBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.edit.ImageEditBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.edit.callback.ReceiptPresentationPaginatedBotProcessor;
+import com.shaidulin.kuskusbot.processor.image.edit.callback.ReceiptStepPaginatedBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.send.callback.ReceiptPresentationPageBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
@@ -116,6 +117,11 @@ public class BaseConfig {
                                                                    ReceiptService receiptService,
                                                                    ImageService imageService) {
         return new ReceiptPresentationPaginatedBotProcessor(stringCacheService, receiptService, imageService, receiptPageSize);
+    }
+
+    @Bean
+    ImageEditBotProcessor receiptStepPaginatedBotProcessor(StringCacheService stringCacheService, ImageService imageService) {
+        return new ReceiptStepPaginatedBotProcessor(stringCacheService, imageService);
     }
 
     @Bean
