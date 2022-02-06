@@ -13,8 +13,14 @@ import java.util.function.Consumer;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DynamicKeyboard {
 
+    private static final String PAYPAL_URL = "https://www.paypal.com/donate/?hosted_button_id=E3U2MDHZUDFZS";
+
     public static List<InlineKeyboardButton> createButtonRow(String text, String data) {
         return Collections.singletonList(createButton(text, data));
+    }
+
+    public static List<InlineKeyboardButton> createDonationButtonRow() {
+        return Collections.singletonList(createDonationButton());
     }
 
     public static List<InlineKeyboardButton> createNavigationPanelRow(Integer previousPageButtonIndex,
@@ -34,6 +40,15 @@ public class DynamicKeyboard {
                 .builder()
                 .text(text)
                 .callbackData(data)
+                .build();
+    }
+
+    private static InlineKeyboardButton createDonationButton() {
+        return InlineKeyboardButton
+                .builder()
+                .text("Помочь проекту")
+                .url(PAYPAL_URL)
+                .callbackData(String.valueOf(1))
                 .build();
     }
 }

@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,7 +25,7 @@ public record HomePageBotProcessor(StringCacheService cacheService) implements B
         String userId = data.getUserId();
         return cacheService
                 .prepareUserCache(userId)
-                .flatMap(ignored -> compileStartSearchButton(userId))
+                .flatMap(ignored -> compileKeyboard(userId))
                 .map(keyboardMarkup -> SendMessage
                         .builder()
                         .text("Приветствую тебя " + data.getFirstName() + " " + data.getLastName() +
@@ -34,12 +35,15 @@ public record HomePageBotProcessor(StringCacheService cacheService) implements B
                         .build());
     }
 
-    private Mono<InlineKeyboardMarkup> compileStartSearchButton(String userId) {
+    private Mono<InlineKeyboardMarkup> compileKeyboard(String userId) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
+        Map<Integer, Data.Session> sessionHash = new HashMap<>();
         int buttonIndex = 0;
         buttons.add(DynamicKeyboard.createButtonRow("Начать поиск", String.valueOf(buttonIndex)));
+        sessionHash.put(buttonIndex, Data.Session.builder().action(Data.Action.PROMPT_INGREDIENT).build());
+        buttons.add(DynamicKeyboard.createDonationButtonRow());
         return cacheService
-                .storeSession(userId, Map.of(buttonIndex, Data.Session.builder().action(Data.Action.PROMPT_INGREDIENT).build()))
+                .storeSession(userId, sessionHash)
                 .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
     }
 
