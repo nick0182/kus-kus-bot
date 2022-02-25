@@ -1,0 +1,137 @@
+version: '3.8'
+
+# path to local docker volumes \\wsl$\docker-desktop-data\version-pack-data\community\docker\volumes
+services:
+#  setup:
+#    image: docker.elastic.co/elasticsearch/${ELASTIC_IMAGE}
+#    volumes:
+#      - elasticsearch-certs:/usr/share/elasticsearch/config/certs
+#    user: "0"
+#    command: >
+#      bash -c '
+#        if [ ! -f certs/ca.zip ]; then
+#          echo "Creating CA";
+#          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+#          unzip config/certs/ca.zip -d config/certs;
+#        fi;
+#        if [ ! -f certs/certs.zip ]; then
+#          echo "Creating certs";
+#          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --dns elasticsearch,localhost --ip 127.0.0.1 --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+#          unzip config/certs/certs.zip -d config/certs;
+#        fi;
+#      '
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/${ELASTIC_IMAGE}
+    networks:
+      - kus-kus-network
+    environment:
+      - discovery.type=single-node
+      - node.name=elasticsearch
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/instance/instance.key
+      - xpack.security.http.ssl.certificate=certs/instance/instance.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.http.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/instance/instance.key
+      - xpack.security.transport.ssl.certificate=certs/instance/instance.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${ELASTIC_LICENSE}
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - elasticsearch-certs:/usr/share/elasticsearch/config/certs
+    ports:
+      - "9200:9200"
+
+
+#  kibana:
+#    image: docker.elastic.co/kibana/kibana:7.16.3
+#    ports:
+#      - "5601:5601"
+#    environment:
+#      ELASTICSEARCH_URL: "http://kus-kus:9658"
+#    networks:
+#      - kus-kus-network
+
+#  fluentd:
+#    build: ./fluentd
+#    volumes:
+#      - ./fluentd/conf:/fluentd/etc
+#    links:
+#      - "elasticsearch"
+#    ports:
+#      - "24224:24224"
+#      - "24224:24224/udp"
+#    networks:
+#      - kus-kus-network
+#    depends_on:
+#      - elasticsearch
+
+  redis:
+    image: redis:6.2.5
+    networks:
+      - kus-kus-network
+
+  kus-kus-bot:
+    image: kus-kus-bot:0.0.1-SNAPSHOT
+    networks:
+      - kus-kus-network
+    environment:
+      bot.token: ${BOT_TOKEN}
+      bot.username: KusKusDevBot
+      bot.receipt.page.size: 10
+      spring.redis.host: redis
+      api.receipt.url: "http://kus-kus:9658"
+      api.image.url: "http://kus-kus-images:11287"
+      logging.level.org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
+      spring.http.log-request-details: "true"
+    depends_on:
+      - redis
+#      - fluentd
+    restart: on-failure
+#    logging:
+#      driver: "fluentd"
+#      options:
+#        fluentd-address: "fluentd:24224"
+#        fluentd-async-connect: "true"
+#        tag: kus-kus
+
+  kus-kus:
+    image: kus-kus:0.0.1-SNAPSHOT
+    networks:
+      - kus-kus-network
+    environment:
+      elasticsearch.address: elasticsearch:9200
+      elasticsearch.username: elastic
+      elasticsearch.password: ${ELASTIC_PASSWORD}
+      server.port: 9658
+      logging.level.org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
+      spring.http.log-request-details: "true"
+    depends_on:
+      - elasticsearch
+    restart: on-failure
+
+  kus-kus-images:
+    image: kus-kus-images:0.0.1-SNAPSHOT
+    networks:
+      - kus-kus-network
+    environment:
+      server.port: 11287
+    volumes:
+      - C:/Users/blink/.aws:/home/cnb/.aws
+    restart: on-failure
+
+volumes:
+  elasticsearch-data:
+    external: true
+  elasticsearch-certs:
+    external: true
+#  kus-kus-images-aws:
+#    external: true
+
+networks:
+  kus-kus-network:
+    external: true
