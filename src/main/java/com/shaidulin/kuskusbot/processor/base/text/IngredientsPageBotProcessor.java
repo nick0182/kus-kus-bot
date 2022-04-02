@@ -1,46 +1,43 @@
 package com.shaidulin.kuskusbot.processor.base.text;
 
+import com.shaidulin.kuskusbot.dto.ingredient.IngredientMatch;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.service.util.IngredientPageKeyboardProvider;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
-import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
-import org.springframework.util.CollectionUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
 
-import java.util.*;
+import java.util.List;
+import java.util.TreeSet;
+
+import static net.logstash.logback.marker.Markers.append;
 
 /**
  * Shows the first page's offering of 3 possible ingredients
  */
-public record IngredientsPageBotProcessor(StringCacheService cacheService, ReceiptService receiptService)
+@Slf4j
+public record IngredientsPageBotProcessor(StringCacheService cacheService, ReceiptService receiptService,
+                                          IngredientPageKeyboardProvider keyboardProvider)
         implements BaseBotProcessor {
 
     @Override
     public Mono<SendMessage> process(Data data) {
         String userId = data.getUserId();
-        String toSearch = data.getInput();
-        return cacheService
-                .getIngredients(userId)
-                .flatMap(known -> receiptService.suggestIngredients(toSearch, known))
-                .map(ingredientMatch -> {
-                    if (ingredientMatch.ingredients().isEmpty()) {
-                        throw new IllegalArgumentException(); // FIXME create custom exception
-                    } else {
-                        return ingredientMatch.ingredients();
-                    }
-                })
-                .filterWhen(ingredientMatch -> cacheService.storeIngredientSuggestions(userId, ingredientMatch))
-                .flatMap(ingredients -> compileIngredientButtons(userId, ingredients))
+        String chatId = data.getChatId();
+        return getIngredientsFromCache(userId)
+                .flatMap(known -> receiptService.suggestIngredients(data.getInput(), known))
+                .map(ingredientMatch -> unwrapIngredients(userId, ingredientMatch))
+                .filterWhen(ingredients -> storeIngredientsInCache(userId, ingredients))
+                .flatMap(ingredients -> keyboardProvider.compileKeyboard(userId, 0, ingredients))
                 .map(ingredientsKeyboard -> SendMessage
                         .builder()
                         .text("Вот что смог найти")
-                        .chatId(userId)
+                        .chatId(chatId)
                         .replyMarkup(ingredientsKeyboard)
                         .build()
                 )
@@ -48,41 +45,36 @@ public record IngredientsPageBotProcessor(StringCacheService cacheService, Recei
                         SendMessage
                                 .builder()
                                 .text("Ничего не нашел \uD83E\uDD14 Попробуй еще раз")
-                                .chatId(userId)
+                                .chatId(chatId)
                                 .build()
                 );
     }
 
-    private Mono<InlineKeyboardMarkup> compileIngredientButtons(String userId, TreeSet<IngredientValue> ingredients) {
-        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
-        Map<Integer, Data.Session> sessionHash = new HashMap<>();
-        int buttonCurrentIndex = -1;
-
-        IngredientValue ingredient;
-        while ((ingredient = ingredients.pollFirst()) != null && ++buttonCurrentIndex < 3) {
-            String name = ingredient.name();
-            int count = ingredient.count();
-            String text = String.join(" - ", name, String.valueOf(count));
-            buttons.add(DynamicKeyboard.createButtonRow(text, String.valueOf(buttonCurrentIndex)));
-            sessionHash.put(buttonCurrentIndex, Data.Session
-                    .builder()
-                    .action(Data.Action.SHOW_SEARCH_CONFIGURATION_OPTIONS)
-                    .ingredientName(name)
-                    .build());
+    private Mono<List<String>> getIngredientsFromCache(String userId) {
+        if (log.isTraceEnabled()) {
+            log.trace(append("user_id", userId), "Getting ingredients from cache");
         }
-
-        if (!CollectionUtils.isEmpty(ingredients)) {
-            buttons.add(DynamicKeyboard.createNavigationPanelRow(null, buttonCurrentIndex));
-            sessionHash.put(buttonCurrentIndex, Data.Session
-                    .builder()
-                    .action(Data.Action.SHOW_INGREDIENTS_PAGE)
-                    .currentIngredientsPage(1)
-                    .build());
-        }
-
         return cacheService
-                .storeSession(userId, sessionHash)
-                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
+                .startSearch(userId)
+                .flatMap(ignored -> cacheService.getIngredients(userId));
+    }
+
+    private TreeSet<IngredientValue> unwrapIngredients(String userId, IngredientMatch ingredientMatch) {
+        if (ingredientMatch.ingredients().isEmpty()) {
+            if (log.isTraceEnabled()) {
+                log.trace(append("user_id", userId), "No ingredients found");
+            }
+            throw new IllegalArgumentException(); // FIXME create custom exception
+        } else {
+            return ingredientMatch.ingredients();
+        }
+    }
+
+    private Mono<Boolean> storeIngredientsInCache(String userId, TreeSet<IngredientValue> ingredients) {
+        if (log.isTraceEnabled()) {
+            log.trace(append("user_id", userId), "Storing ingredients in cache. Ingredients: {}", ingredients);
+        }
+        return cacheService.storeIngredientSuggestions(userId, ingredients);
     }
 
     @Override

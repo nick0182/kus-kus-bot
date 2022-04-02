@@ -16,7 +16,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -36,7 +35,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<Boolean> prepareUserCache(String userId) {
+    public Mono<String> prepareUserCache(String userId) {
         String[] keysToDelete = new String[]{
                 composeKey(userId, "permissions"),
                 composeKey(userId, "suggestions"),
@@ -49,13 +48,12 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
 
         return redisReactiveCommands.del(keysToDelete)
                 .flatMap(ignored -> modifyPermission(userId, "01"))
-                .map(response -> response.equals("OK"))
-                .filter(Boolean.TRUE::equals);
+                .filter(response -> response.equals("OK"));
     }
 
     @Override
     public Mono<String> startSearch(String userId) {
-        return modifyPermission(userId, "10");
+        return modifyPermission(userId, "10").filter(response -> response.equals("OK"));
     }
 
     @Override
@@ -75,12 +73,11 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<Boolean> storeIngredient(String userId, String ingredient) {
+    public Mono<String> storeIngredient(String userId, String ingredient) {
         return redisReactiveCommands
                 .rpush(composeKey(userId, "ingredients"), ingredient)
                 .flatMap(ignored -> modifyPermission(userId, "01"))
-                .map(response -> response.equals("OK"))
-                .filter(Boolean.TRUE::equals);
+                .filter(response -> response.equals("OK"));
     }
 
     @Override
@@ -97,20 +94,17 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     public Mono<List<String>> getIngredients(String userId) {
         return redisReactiveCommands
                 .lrange(composeKey(userId, "ingredients"), 0, -1)
-                .collectList()
-                .defaultIfEmpty(Collections.emptyList());
+                .collectList();
     }
 
     @Override
-    public Mono<String> getImage(String id, ImageType type) {
-        String key = type.equals(ImageType.MAIN) ? composeMainImageKey(id) : null;
-        return redisReactiveCommands.get(key);
+    public Mono<String> getImage(String id) {
+        return redisReactiveCommands.get(composeImageKey(id));
     }
 
     @Override
-    public Mono<String> storeImage(String id, ImageType type, String telegramFileId) {
-        String key = type.equals(ImageType.MAIN) ? composeMainImageKey(id) : null;
-        return redisReactiveCommands.set(key, telegramFileId);
+    public Mono<String> storeImage(String id, String telegramFileId) {
+        return redisReactiveCommands.set(composeImageKey(id), telegramFileId);
     }
 
     @Override
@@ -210,7 +204,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
         return String.join(":", userId, "receipts", "presentations", "meta");
     }
 
-    private String composeMainImageKey(String id) {
+    private String composeImageKey(String id) {
         return String.join(":", "image", id);
     }
 }

@@ -1,36 +1,37 @@
 package com.shaidulin.kuskusbot.service.cache;
 
-import com.shaidulin.kuskusbot.dto.receipt.Meta;
 import com.shaidulin.kuskusbot.dto.ingredient.IngredientValue;
+import com.shaidulin.kuskusbot.dto.receipt.Meta;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationMatch;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptPresentationValue;
 import com.shaidulin.kuskusbot.dto.receipt.ReceiptValue;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Permission;
-import com.shaidulin.kuskusbot.util.ImageType;
 import reactor.core.publisher.Mono;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 public interface StringCacheService {
 
     Mono<Boolean> checkPermission(String userId, Permission permission);
 
-    Mono<Boolean> prepareUserCache(String userId);
+    Mono<String> prepareUserCache(String userId);
 
     Mono<String> startSearch(String userId);
 
     Mono<Boolean> storeIngredientSuggestions(String userId, TreeSet<IngredientValue> ingredients);
 
-    Mono<Boolean> storeIngredient(String userId, String ingredient);
+    Mono<String> storeIngredient(String userId, String ingredient);
 
     Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId);
 
     Mono<List<String>> getIngredients(String userId);
 
-    Mono<String> getImage(String id, ImageType type);
+    Mono<String> getImage(String id);
 
-    Mono<String> storeImage(String id, ImageType type, String telegramFileId);
+    Mono<String> storeImage(String id, String telegramFileId);
 
     Mono<Boolean> storeReceiptPresentations(String userId, ReceiptPresentationMatch match);
 

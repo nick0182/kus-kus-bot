@@ -1,74 +1,48 @@
 version: '3.8'
 
 # path to local docker volumes \\wsl$\docker-desktop-data\version-pack-data\community\docker\volumes
+# bootstrap check failure [1] of [1]: max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144] see https://stackoverflow.com/a/66547784/10330374
+
 services:
-#  setup:
-#    image: docker.elastic.co/elasticsearch/${ELASTIC_IMAGE}
-#    volumes:
-#      - elasticsearch-certs:/usr/share/elasticsearch/config/certs
-#    user: "0"
-#    command: >
-#      bash -c '
-#        if [ ! -f certs/ca.zip ]; then
-#          echo "Creating CA";
-#          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
-#          unzip config/certs/ca.zip -d config/certs;
-#        fi;
-#        if [ ! -f certs/certs.zip ]; then
-#          echo "Creating certs";
-#          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --dns elasticsearch,localhost --ip 127.0.0.1 --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
-#          unzip config/certs/certs.zip -d config/certs;
-#        fi;
-#      '
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/${ELASTIC_IMAGE}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELK_STACK_IMAGE_TAG}
     networks:
       - kus-kus-network
     environment:
       - discovery.type=single-node
-      - node.name=elasticsearch
-      - xpack.security.enabled=true
-      - xpack.security.http.ssl.enabled=true
-      - xpack.security.http.ssl.key=certs/instance/instance.key
-      - xpack.security.http.ssl.certificate=certs/instance/instance.crt
-      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
-      - xpack.security.http.ssl.verification_mode=certificate
-      - xpack.security.transport.ssl.enabled=true
-      - xpack.security.transport.ssl.key=certs/instance/instance.key
-      - xpack.security.transport.ssl.certificate=certs/instance/instance.crt
-      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
-      - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.license.self_generated.type=${ELASTIC_LICENSE}
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
-      - elasticsearch-certs:/usr/share/elasticsearch/config/certs
     ports:
       - "9200:9200"
 
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELK_STACK_IMAGE_TAG}
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    networks:
+      - kus-kus-network
 
-#  kibana:
-#    image: docker.elastic.co/kibana/kibana:7.16.3
-#    ports:
-#      - "5601:5601"
-#    environment:
-#      ELASTICSEARCH_URL: "http://kus-kus:9658"
-#    networks:
-#      - kus-kus-network
-
-#  fluentd:
-#    build: ./fluentd
-#    volumes:
-#      - ./fluentd/conf:/fluentd/etc
-#    links:
-#      - "elasticsearch"
-#    ports:
-#      - "24224:24224"
-#      - "24224:24224/udp"
-#    networks:
-#      - kus-kus-network
-#    depends_on:
-#      - elasticsearch
+  fluentd:
+    image: kus-kus_fluentd:latest
+    links:
+      - "elasticsearch"
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - kus-kus-network
+    restart: on-failure
+    depends_on:
+      - elasticsearch
 
   redis:
     image: redis:6.2.5
@@ -86,30 +60,25 @@ services:
       spring.redis.host: redis
       api.receipt.url: "http://kus-kus:9658"
       api.image.url: "http://kus-kus-images:11287"
-      logging.level.org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
-      spring.http.log-request-details: "true"
     depends_on:
       - redis
-#      - fluentd
+    links:
+      - fluentd
     restart: on-failure
-#    logging:
-#      driver: "fluentd"
-#      options:
-#        fluentd-address: "fluentd:24224"
-#        fluentd-async-connect: "true"
-#        tag: kus-kus
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async-connect: "true"
+        tag: kus-kus
 
   kus-kus:
     image: kus-kus:0.0.1-SNAPSHOT
     networks:
       - kus-kus-network
     environment:
-      elasticsearch.address: elasticsearch:9200
-      elasticsearch.username: elastic
-      elasticsearch.password: ${ELASTIC_PASSWORD}
+      spring.elasticsearch.uris: http://elasticsearch:9200
       server.port: 9658
-      logging.level.org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
-      spring.http.log-request-details: "true"
     depends_on:
       - elasticsearch
     restart: on-failure
@@ -127,10 +96,6 @@ services:
 volumes:
   elasticsearch-data:
     external: true
-  elasticsearch-certs:
-    external: true
-#  kus-kus-images-aws:
-#    external: true
 
 networks:
   kus-kus-network:

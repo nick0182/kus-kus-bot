@@ -5,7 +5,6 @@ import com.shaidulin.kuskusbot.processor.image.edit.ImageEditBotProcessor;
 import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
 import com.shaidulin.kuskusbot.update.Router;
 import com.shaidulin.kuskusbot.update.RouterMapper;
-import com.shaidulin.kuskusbot.util.ImageType;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
@@ -21,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static net.logstash.logback.marker.Markers.append;
 
 @Slf4j
 public abstract class ReceiptBot extends TelegramLongPollingBot {
@@ -51,7 +52,7 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        log.debug("Got update: {}", update);
+        logUpdate(update);
         routerMapper
                 .routeIncomingUpdate(update)
                 .flatMap(router -> switch (router.method()) {
@@ -63,12 +64,27 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
                 .subscribe();
     }
 
+    private void logUpdate(Update update) {
+        if (log.isTraceEnabled()) {
+            Long userId;
+            if (update.hasMessage()) {
+                userId = update.getMessage().getFrom().getId();
+            } else {
+                userId = update.getCallbackQuery().getFrom().getId();
+            }
+            log.trace(append("user_id", userId), "Got update: {}", update);
+        }
+    }
+
     private Mono<? extends BotApiMethod<?>> executeBaseMethod(Router router) {
         return baseBotProcessorMap.get(router.type())
                 .process(router.data())
                 .doOnSuccess(this::logIfNullMethod)
                 .doOnNext(botApiMethod -> {
                     try {
+                        if (log.isTraceEnabled()) {
+                            log.trace(append("user_id", router.data().getUserId()), "Executing method: {}", botApiMethod);
+                        }
                         execute(botApiMethod);
                     } catch (TelegramApiException e) {
                         log.error("Failed to execute Telegram API method", e);
@@ -88,11 +104,14 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
                         String imageName = imageToSend.getMediaName();
                         boolean isNewImage = imageToSend.isNew();
 
+                        if (log.isTraceEnabled()) {
+                            log.trace(append("user_id", router.data().getUserId()), "Executing method: {}", sendPhoto);
+                        }
                         String telegramFileId = execute(sendPhoto).getPhoto().get(0).getFileId();
 
                         if (isNewImage) {
-                            log.debug("Storing new image in cache with fileId: {} with name: {}", telegramFileId, imageName);
-                            return routerMapper.stringCacheService().storeImage(imageName, ImageType.MAIN, telegramFileId);
+                            log.info("Storing new image in cache. file_id: {}; name: {}", telegramFileId, imageName);
+                            return routerMapper.stringCacheService().storeImage(imageName, telegramFileId);
                         } else {
                             return Mono.empty();
                         }
@@ -112,11 +131,14 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
                         String imageName = imageToSend.getMediaName();
                         boolean isNewImage = imageToSend.isNewMedia();
 
+                        if (log.isTraceEnabled()) {
+                            log.trace(append("user_id", router.data().getUserId()), "Executing method: {}", editMessageMedia);
+                        }
                         String telegramFileId = ((Message) execute(editMessageMedia)).getPhoto().get(0).getFileId();
 
                         if (isNewImage) {
-                            log.debug("Storing new image in cache with fileId: {} with name: {}", telegramFileId, imageName);
-                            return routerMapper.stringCacheService().storeImage(imageName, ImageType.MAIN, telegramFileId);
+                            log.info("Storing new image in cache. file_id: {}; name: {}", telegramFileId, imageName);
+                            return routerMapper.stringCacheService().storeImage(imageName, telegramFileId);
                         } else {
                             return Mono.empty();
                         }
@@ -128,7 +150,7 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
     private void logIfNullMethod(Object method) {
         if (method == null) {
-            log.debug("No response was constructed and sent because BotApiMethod is null");
+            log.warn("No response was constructed and sent because BotApiMethod is null");
         }
     }
 

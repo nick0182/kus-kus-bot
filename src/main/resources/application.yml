@@ -2,7 +2,7 @@ logging:
   level:
     com:
       shaidulin:
-        kuskusbot: DEBUG
+        kuskusbot: TRACE
     io:
       lettuce:
         core: DEBUG

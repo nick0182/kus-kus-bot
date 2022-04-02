@@ -17,12 +17,15 @@ import com.shaidulin.kuskusbot.service.api.impl.ImageServiceImpl;
 import com.shaidulin.kuskusbot.service.api.impl.ReceiptServiceImpl;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.service.cache.impl.StringCacheServiceImpl;
+import com.shaidulin.kuskusbot.service.util.*;
+import com.shaidulin.kuskusbot.service.util.impl.*;
 import com.shaidulin.kuskusbot.update.RouterMapper;
 import io.lettuce.core.RedisClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
 import org.telegram.telegrambots.meta.generics.LongPollingBot;
 
 import java.util.List;
@@ -60,6 +63,42 @@ public class BaseConfig {
         return new ImageServiceImpl(webClient.build(), apiImageURL);
     }
 
+    @Bean
+    MediaMessageProvider<EditMessageMedia> editMessageMediaProvider(StringCacheService cacheService,
+                                                                    ImageService imageService) {
+        return new EditMessageMediaProviderImpl(cacheService, imageService);
+    }
+
+    @Bean
+    IngredientPageKeyboardProvider ingredientPageKeyboardProvider(StringCacheService cacheService) {
+        return new IngredientPageKeyboardProviderImpl(cacheService);
+    }
+
+    @Bean
+    ReceiptKeyboardProvider receiptKeyboardProvider(StringCacheService cacheService) {
+        return new ReceiptKeyboardProviderImpl(cacheService);
+    }
+
+    @Bean
+    ReceiptPageKeyboardProvider receiptPageKeyboardProvider(StringCacheService cacheService) {
+        return new ReceiptPageKeyboardProviderImpl(cacheService);
+    }
+
+    @Bean
+    StepPageKeyboardProvider stepPageKeyboardProvider(StringCacheService cacheService) {
+        return new StepPageKeyboardProviderImpl(cacheService);
+    }
+
+    @Bean
+    SimpleKeyboardProvider ingredientSelectionKeyboardProviderImpl(StringCacheService cacheService) {
+        return new IngredientSelectionKeyboardProviderImpl(cacheService);
+    }
+
+    @Bean
+    SimpleKeyboardProvider sortPageKeyboardProviderImpl(StringCacheService cacheService) {
+        return new SortPageKeyboardProviderImpl(cacheService);
+    }
+
     // ----------------------- base processors ---------------------------------------
 
     @Bean
@@ -73,34 +112,39 @@ public class BaseConfig {
     }
 
     @Bean
-    BaseBotProcessor ingredientsPageBotProcessor(StringCacheService stringCacheService, ReceiptService receiptService) {
-        return new IngredientsPageBotProcessor(stringCacheService, receiptService);
+    BaseBotProcessor ingredientsPageBotProcessor(StringCacheService stringCacheService, ReceiptService receiptService,
+                                                 IngredientPageKeyboardProvider ingredientPageKeyboardProvider) {
+        return new IngredientsPageBotProcessor(stringCacheService, receiptService, ingredientPageKeyboardProvider);
     }
 
     @Bean
-    BaseBotProcessor ingredientSelectionBotProcessor(StringCacheService stringCacheService) {
-        return new IngredientSelectionBotProcessor(stringCacheService);
+    BaseBotProcessor ingredientSelectionBotProcessor(StringCacheService stringCacheService,
+                                                     SimpleKeyboardProvider ingredientSelectionKeyboardProviderImpl) {
+        return new IngredientSelectionBotProcessor(stringCacheService, ingredientSelectionKeyboardProviderImpl);
     }
 
     @Bean
-    BaseBotProcessor ingredientsPaginatedBotProcessor(StringCacheService stringCacheService) {
-        return new IngredientsPaginatedBotProcessor(stringCacheService);
+    BaseBotProcessor ingredientsPaginatedBotProcessor(StringCacheService stringCacheService,
+                                                      IngredientPageKeyboardProvider ingredientPageKeyboardProvider) {
+        return new IngredientsPaginatedBotProcessor(stringCacheService, ingredientPageKeyboardProvider);
     }
 
     @Bean
-    BaseBotProcessor sortPageBotProcessor(StringCacheService stringCacheService) {
-        return new SortPageBotProcessor(stringCacheService);
+    BaseBotProcessor sortPageBotProcessor(SimpleKeyboardProvider sortPageKeyboardProviderImpl) {
+        return new SortPageBotProcessor(sortPageKeyboardProviderImpl);
     }
 
     @Bean
     BaseBotProcessor receiptIngredientsPageBotProcessor(StringCacheService stringCacheService,
-                                                        ReceiptService receiptService) {
-        return new ReceiptIngredientsPageBotProcessor(stringCacheService, receiptService);
+                                                        ReceiptService receiptService,
+                                                        ReceiptKeyboardProvider receiptKeyboardProvider) {
+        return new ReceiptIngredientsPageBotProcessor(stringCacheService, receiptService, receiptKeyboardProvider);
     }
 
     @Bean
-    BaseBotProcessor receiptNutritionOverviewPageBotProcessor(StringCacheService stringCacheService) {
-        return new ReceiptNutritionOverviewPageBotProcessor(stringCacheService);
+    BaseBotProcessor receiptNutritionOverviewPageBotProcessor(StringCacheService stringCacheService,
+                                                              ReceiptKeyboardProvider receiptKeyboardProvider) {
+        return new ReceiptNutritionOverviewPageBotProcessor(stringCacheService, receiptKeyboardProvider);
     }
 
     // ----------------------- image processors ---------------------------------------
@@ -108,20 +152,26 @@ public class BaseConfig {
     @Bean
     ImageSendBotProcessor receiptPresentationPageBotProcessor(StringCacheService stringCacheService,
                                                               ReceiptService receiptService,
+                                                              ReceiptPageKeyboardProvider receiptPageKeyboardProvider,
                                                               ImageService imageService) {
-        return new ReceiptPresentationPageBotProcessor(stringCacheService, receiptService, imageService, receiptPageSize);
+        return new ReceiptPresentationPageBotProcessor(stringCacheService, receiptService, receiptPageKeyboardProvider,
+                imageService, receiptPageSize);
     }
 
     @Bean
     ImageEditBotProcessor receiptPresentationPaginatedBotProcessor(StringCacheService stringCacheService,
                                                                    ReceiptService receiptService,
-                                                                   ImageService imageService) {
-        return new ReceiptPresentationPaginatedBotProcessor(stringCacheService, receiptService, imageService, receiptPageSize);
+                                                                   ReceiptPageKeyboardProvider receiptPageKeyboardProvider,
+                                                                   MediaMessageProvider<EditMessageMedia> editMessageMediaProvider) {
+        return new ReceiptPresentationPaginatedBotProcessor(stringCacheService, receiptService, receiptPageKeyboardProvider,
+                editMessageMediaProvider, receiptPageSize);
     }
 
     @Bean
-    ImageEditBotProcessor receiptStepPaginatedBotProcessor(StringCacheService stringCacheService, ImageService imageService) {
-        return new ReceiptStepPaginatedBotProcessor(stringCacheService, imageService);
+    ImageEditBotProcessor receiptStepPaginatedBotProcessor(StringCacheService stringCacheService,
+                                                           StepPageKeyboardProvider stepPageKeyboardProvider,
+                                                           MediaMessageProvider<EditMessageMedia> editMessageMediaProvider) {
+        return new ReceiptStepPaginatedBotProcessor(stringCacheService, stepPageKeyboardProvider, editMessageMediaProvider);
     }
 
     @Bean
