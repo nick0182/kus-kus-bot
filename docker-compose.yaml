@@ -50,7 +50,7 @@ services:
       - kus-kus-network
 
   kus-kus-bot:
-    image: kus-kus-bot:0.0.1-SNAPSHOT
+    image: blink182u2/kus-kus-bot:0.0.1-SNAPSHOT
     networks:
       - kus-kus-network
     environment:
@@ -73,7 +73,7 @@ services:
         tag: kus-kus
 
   kus-kus:
-    image: kus-kus:0.0.1-SNAPSHOT
+    image: blink182u2/kus-kus:0.0.1-SNAPSHOT
     networks:
       - kus-kus-network
     environment:
@@ -84,11 +84,12 @@ services:
     restart: on-failure
 
   kus-kus-images:
-    image: kus-kus-images:0.0.1-SNAPSHOT
+    image: blink182u2/kus-kus-images:0.0.1-SNAPSHOT
     networks:
       - kus-kus-network
     environment:
       server.port: 11287
+      spring.profiles.active: local
     volumes:
       - C:/Users/blink/.aws:/home/cnb/.aws
     restart: on-failure

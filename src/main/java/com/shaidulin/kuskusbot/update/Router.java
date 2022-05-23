@@ -8,6 +8,7 @@ public record Router(Method method, Type type, Data data) {
 
     public enum Type {
         HOME_PAGE,
+        BOT_REFERENCE_PAGE,
 
         INGREDIENT_SEARCH_PAGE,
         INGREDIENTS_PAGE,

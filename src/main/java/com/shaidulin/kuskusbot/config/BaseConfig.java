@@ -1,6 +1,7 @@
 package com.shaidulin.kuskusbot.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.shaidulin.kuskusbot.ReceiptBot;
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.processor.base.callback.*;
@@ -24,10 +25,12 @@ import io.lettuce.core.RedisClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.Resource;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
 import org.telegram.telegrambots.meta.generics.LongPollingBot;
 
+import java.io.IOException;
 import java.util.List;
 
 @Configuration
@@ -47,6 +50,9 @@ public class BaseConfig {
 
     @Value("${bot.receipt.page.size}")
     private int receiptPageSize;
+
+    @Value("classpath:/manual.txt")
+    private Resource manualResource;
 
     @Bean
     StringCacheService stringCacheService(RedisClient redisClient, ObjectMapper objectMapper) {
@@ -90,8 +96,18 @@ public class BaseConfig {
     }
 
     @Bean
+    SimpleKeyboardProvider botReferencePageKeyboardProvider(StringCacheService cacheService) {
+        return new BotReferencePageKeyboardProvider(cacheService);
+    }
+
+    @Bean
     SimpleKeyboardProvider ingredientSelectionKeyboardProviderImpl(StringCacheService cacheService) {
         return new IngredientSelectionKeyboardProviderImpl(cacheService);
+    }
+
+    @Bean
+    SimpleKeyboardProvider homePageKeyboardProviderImpl(StringCacheService cacheService) {
+        return new HomePageKeyboardProviderImpl(cacheService);
     }
 
     @Bean
@@ -102,8 +118,9 @@ public class BaseConfig {
     // ----------------------- base processors ---------------------------------------
 
     @Bean
-    BaseBotProcessor homePageBotProcessor(StringCacheService stringCacheService) {
-        return new HomePageBotProcessor(stringCacheService);
+    BaseBotProcessor homePageBotProcessor(StringCacheService stringCacheService,
+                                          SimpleKeyboardProvider homePageKeyboardProviderImpl) {
+        return new HomePageBotProcessor(stringCacheService, homePageKeyboardProviderImpl);
     }
 
     @Bean
@@ -121,6 +138,12 @@ public class BaseConfig {
     BaseBotProcessor ingredientSelectionBotProcessor(StringCacheService stringCacheService,
                                                      SimpleKeyboardProvider ingredientSelectionKeyboardProviderImpl) {
         return new IngredientSelectionBotProcessor(stringCacheService, ingredientSelectionKeyboardProviderImpl);
+    }
+
+    @Bean
+    BaseBotProcessor botReferencePageBotProcessor(SimpleKeyboardProvider botReferencePageKeyboardProvider) throws IOException {
+        String manualText = new String(manualResource.getInputStream().readAllBytes(), Charsets.UTF_8);
+        return new BotReferencePageBotProcessor(botReferencePageKeyboardProvider, manualText);
     }
 
     @Bean

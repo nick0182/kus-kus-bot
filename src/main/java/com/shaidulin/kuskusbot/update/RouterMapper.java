@@ -65,7 +65,9 @@ public record RouterMapper(StringCacheService stringCacheService) {
 
     private Router identifyCallbackRouter(Data data) {
         return switch (data.getSession().getAction()) {
+            case SHOW_HOME_PAGE -> new Router(BASE, HOME_PAGE, data);
             case PROMPT_INGREDIENT -> new Router(BASE, INGREDIENT_SEARCH_PAGE, data);
+            case SHOW_BOT_REFERENCE -> new Router(BASE, BOT_REFERENCE_PAGE, data);
             case SHOW_INGREDIENTS_PAGE -> new Router(BASE, INGREDIENTS_PAGINATED, data);
             case SHOW_SEARCH_CONFIGURATION_OPTIONS -> new Router(BASE, INGREDIENT_SELECTION, data);
             case SHOW_SORT_OPTIONS -> new Router(BASE, SORT_PAGE, data);

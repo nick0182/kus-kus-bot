@@ -9,7 +9,6 @@ import com.shaidulin.kuskusbot.dto.receipt.ReceiptValue;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Permission;
-import com.shaidulin.kuskusbot.util.ImageType;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.SneakyThrows;

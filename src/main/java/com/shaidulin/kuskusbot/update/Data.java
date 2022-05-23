@@ -29,7 +29,9 @@ public class Data {
     }
 
     public enum Action {
+        SHOW_HOME_PAGE,
         PROMPT_INGREDIENT, // user wants to prompt for ingredient
+        SHOW_BOT_REFERENCE,
         SHOW_INGREDIENTS_PAGE,
         SHOW_SEARCH_CONFIGURATION_OPTIONS,
         SHOW_SORT_OPTIONS,

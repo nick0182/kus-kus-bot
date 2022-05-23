@@ -2,19 +2,17 @@ package com.shaidulin.kuskusbot.processor.base.command;
 
 import com.shaidulin.kuskusbot.processor.base.BaseBotProcessor;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.service.util.SimpleKeyboardProvider;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
-import com.shaidulin.kuskusbot.util.keyboard.DynamicKeyboard;
 import lombok.extern.slf4j.Slf4j;
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 
 import static net.logstash.logback.marker.Markers.append;
 
@@ -22,20 +20,15 @@ import static net.logstash.logback.marker.Markers.append;
  * Home page
  */
 @Slf4j
-public record HomePageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
+public record HomePageBotProcessor(StringCacheService cacheService,
+                                   SimpleKeyboardProvider keyboardProvider) implements BaseBotProcessor {
 
     @Override
-    public Mono<SendMessage> process(Data data) {
+    public Mono<? extends BotApiMethod<?>> process(Data data) {
         String userId = data.getUserId();
         return prepareCache(userId)
-                .flatMap(ignored -> compileKeyboard(userId))
-                .map(keyboardMarkup -> SendMessage
-                        .builder()
-                        .text("Приветствую тебя " + data.getFirstName() + " " + data.getLastName() +
-                                "! Пожалуйста нажми кнопку \"Начать поиск\" чтобы искать рецепты")
-                        .chatId(data.getChatId())
-                        .replyMarkup(keyboardMarkup)
-                        .build());
+                .flatMap(ignored -> keyboardProvider.compileKeyboard(userId))
+                .map(keyboardMarkup -> compileMessage(keyboardMarkup, data));
     }
 
     private Mono<String> prepareCache(String userId) {
@@ -45,20 +38,30 @@ public record HomePageBotProcessor(StringCacheService cacheService) implements B
         return cacheService.prepareUserCache(userId);
     }
 
-    private Mono<InlineKeyboardMarkup> compileKeyboard(String userId) {
-        List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
-        Map<Integer, Data.Session> sessionHash = new HashMap<>();
-        int buttonIndex = 0;
-        buttons.add(DynamicKeyboard.createButtonRow("Начать поиск", String.valueOf(buttonIndex)));
-        sessionHash.put(buttonIndex, Data.Session.builder().action(Data.Action.PROMPT_INGREDIENT).build());
-        buttons.add(DynamicKeyboard.createDonationButtonRow());
-
-        if (log.isTraceEnabled()) {
-            log.trace(append("user_id", userId), "Storing session: {}", sessionHash);
+    private BotApiMethod<?> compileMessage(InlineKeyboardMarkup keyboardMarkup, Data data) {
+        String text = "Приветствую тебя " + data.getFirstName() + " " + data.getLastName() +
+                "! Пожалуйста нажми кнопку \"Начать поиск\" чтобы искать рецепты";
+        String chatId = data.getChatId();
+        if (isTriggeredByStartCommand(data.getInput())) {
+            return SendMessage
+                    .builder()
+                    .text(text)
+                    .chatId(chatId)
+                    .replyMarkup(keyboardMarkup)
+                    .build();
+        } else {
+            return EditMessageText
+                    .builder()
+                    .text(text)
+                    .chatId(chatId)
+                    .messageId(data.getMessageId())
+                    .replyMarkup(keyboardMarkup)
+                    .build();
         }
-        return cacheService
-                .storeSession(userId, sessionHash)
-                .map(ignored -> InlineKeyboardMarkup.builder().keyboard(buttons).build());
+    }
+
+    private boolean isTriggeredByStartCommand(String input) {
+        return Objects.nonNull(input) && Objects.equals(input, "/start");
     }
 
     @Override
