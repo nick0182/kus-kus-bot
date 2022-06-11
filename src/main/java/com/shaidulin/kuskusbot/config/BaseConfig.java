@@ -54,6 +54,9 @@ public class BaseConfig {
     @Value("classpath:/manual.txt")
     private Resource manualResource;
 
+    @Value("classpath:/greeting.txt")
+    private Resource greetingResource;
+
     @Bean
     StringCacheService stringCacheService(RedisClient redisClient, ObjectMapper objectMapper) {
         return new StringCacheServiceImpl(redisClient.connect().reactive(), objectMapper);
@@ -119,8 +122,9 @@ public class BaseConfig {
 
     @Bean
     BaseBotProcessor homePageBotProcessor(StringCacheService stringCacheService,
-                                          SimpleKeyboardProvider homePageKeyboardProviderImpl) {
-        return new HomePageBotProcessor(stringCacheService, homePageKeyboardProviderImpl);
+                                          SimpleKeyboardProvider homePageKeyboardProviderImpl) throws IOException {
+        String greetingText = new String(greetingResource.getInputStream().readAllBytes(), Charsets.UTF_8);
+        return new HomePageBotProcessor(stringCacheService, homePageKeyboardProviderImpl, greetingText);
     }
 
     @Bean

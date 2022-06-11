@@ -21,7 +21,8 @@ import static net.logstash.logback.marker.Markers.append;
  */
 @Slf4j
 public record HomePageBotProcessor(StringCacheService cacheService,
-                                   SimpleKeyboardProvider keyboardProvider) implements BaseBotProcessor {
+                                   SimpleKeyboardProvider keyboardProvider,
+                                   String greetingText) implements BaseBotProcessor {
 
     @Override
     public Mono<? extends BotApiMethod<?>> process(Data data) {
@@ -39,23 +40,24 @@ public record HomePageBotProcessor(StringCacheService cacheService,
     }
 
     private BotApiMethod<?> compileMessage(InlineKeyboardMarkup keyboardMarkup, Data data) {
-        String text = "Приветствую тебя " + data.getFirstName() + " " + data.getLastName() +
-                "! Пожалуйста нажми кнопку \"Начать поиск\" чтобы искать рецепты";
+        String greeting = String.format(greetingText, data.getFirstName(), data.getLastName());
         String chatId = data.getChatId();
         if (isTriggeredByStartCommand(data.getInput())) {
             return SendMessage
                     .builder()
-                    .text(text)
+                    .text(greeting)
                     .chatId(chatId)
                     .replyMarkup(keyboardMarkup)
+                    .parseMode("HTML")
                     .build();
         } else {
             return EditMessageText
                     .builder()
-                    .text(text)
+                    .text(greeting)
                     .chatId(chatId)
                     .messageId(data.getMessageId())
                     .replyMarkup(keyboardMarkup)
+                    .parseMode("HTML")
                     .build();
         }
     }
