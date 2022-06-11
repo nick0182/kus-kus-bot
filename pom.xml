@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.6.7</version>
+        <version>2.7.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.shaidulin</groupId>
     <artifactId>kus-kus-bot</artifactId>
-    <version>0.0.3-SNAPSHOT</version>
+    <version>0.0.4</version>
     <name>kus-kus-bot</name>
     <description>kus-kus-bot</description>
     <properties>

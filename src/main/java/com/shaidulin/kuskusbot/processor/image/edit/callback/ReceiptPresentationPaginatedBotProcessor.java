@@ -87,7 +87,11 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
             log.trace(append("user_id", userId), "Current batch flow");
         }
         int cacheIndex = data.getSession().getCurrentReceiptPage() % receiptPageSize;
-        if (cacheIndex == 0 || cacheIndex == receiptPageSize - 1) {
+        if (cacheIndex == 0) {
+            return cacheService
+                    .getReceiptPresentationsSize(userId)
+                    .flatMap(cacheSize -> getFromCache(data, cacheIndex, cacheSize != cacheIndex + 1));
+        } else if (cacheIndex == receiptPageSize - 1) {
             return getFromCache(data, cacheIndex, hasMore);
         } else {
             return cacheService
