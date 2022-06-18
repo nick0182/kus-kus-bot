@@ -1,5 +1,6 @@
 package com.shaidulin.kuskusbot.util;
 
 public enum SortType {
-    ACCURACY
+    ACCURACY,
+    COOK_TIME
 }

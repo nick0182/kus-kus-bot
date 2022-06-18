@@ -13,6 +13,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import reactor.core.publisher.Mono;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import static net.logstash.logback.marker.Markers.append;
 
@@ -40,7 +41,9 @@ public record HomePageBotProcessor(StringCacheService cacheService,
     }
 
     private BotApiMethod<?> compileMessage(InlineKeyboardMarkup keyboardMarkup, Data data) {
-        String greeting = String.format(greetingText, data.getFirstName(), data.getLastName());
+        String firstName = data.getFirstName();
+        String lastName = Optional.ofNullable(data.getLastName()).orElse("");
+        String greeting = String.format(greetingText, firstName, lastName);
         String chatId = data.getChatId();
         if (isTriggeredByStartCommand(data.getInput())) {
             return SendMessage

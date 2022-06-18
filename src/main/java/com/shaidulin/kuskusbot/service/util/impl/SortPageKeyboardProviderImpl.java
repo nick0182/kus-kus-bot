@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,11 +25,19 @@ public class SortPageKeyboardProviderImpl extends KeyboardProvider implements Si
     public Mono<InlineKeyboardMarkup> compileKeyboard(String userId) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
         int buttonIndex = 0;
+        Map<Integer, Data.Session> sessionHash = new HashMap<>();
         buttons.add(DynamicKeyboard.createButtonRow("Самые точные", String.valueOf(buttonIndex)));
-        Map<Integer, Data.Session> sessionHash = Map.of(buttonIndex, Data.Session
+        sessionHash.put(buttonIndex, Data.Session
                 .builder()
                 .action(Data.Action.SHOW_RECEIPT_PRESENTATION_INITIAL_PAGE)
                 .receiptSortType(SortType.ACCURACY)
+                .build());
+        buttonIndex++;
+        buttons.add(DynamicKeyboard.createButtonRow("Самые быстрые", String.valueOf(buttonIndex)));
+        sessionHash.put(buttonIndex, Data.Session
+                .builder()
+                .action(Data.Action.SHOW_RECEIPT_PRESENTATION_INITIAL_PAGE)
+                .receiptSortType(SortType.COOK_TIME)
                 .build());
 
         return storeSession(userId, sessionHash).thenReturn(InlineKeyboardMarkup.builder().keyboard(buttons).build());
