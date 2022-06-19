@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static net.logstash.logback.marker.Markers.append;
 
@@ -18,13 +19,15 @@ import static net.logstash.logback.marker.Markers.append;
 @Slf4j
 public record IngredientSearchPageBotProcessor(StringCacheService cacheService) implements BaseBotProcessor {
 
+    private static final String INGREDIENTS_BUCKET_LIST = "\n ▫ ";
+
     @Override
     public Mono<EditMessageText> process(Data data) {
         String userId = data.getUserId();
         return getIngredientsFromCache(userId)
                 .filter(ingredients -> !ingredients.isEmpty())
                 .map(ingredients -> compileMessage(userId, data.getChatId(), data.getMessageId(),
-                        "Выбранные ингредиенты: " + ingredients + "\n\nНапиши ингредиент для поиска"))
+                        "<u>Выбранные ингредиенты:</u>" + compileIngredientsText(ingredients) + "Напиши ингредиент для поиска"))
                 .defaultIfEmpty(compileMessage(userId, data.getChatId(), data.getMessageId(),
                         "Напиши ингредиент для поиска"));
     }
@@ -44,11 +47,18 @@ public record IngredientSearchPageBotProcessor(StringCacheService cacheService) 
                 .chatId(chatId)
                 .messageId(messageId)
                 .text(text)
+                .parseMode("HTML")
                 .build();
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Compiling message to send: {}", message);
         }
         return message;
+    }
+
+    private String compileIngredientsText(List<String> ingredients) {
+        return ingredients.stream()
+                .map(ingredient -> "<i>" + ingredient + "</i>")
+                .collect(Collectors.joining(INGREDIENTS_BUCKET_LIST, INGREDIENTS_BUCKET_LIST, "\n\n"));
     }
 
     @Override

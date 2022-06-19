@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static net.logstash.logback.marker.Markers.append;
 
@@ -22,6 +23,8 @@ import static net.logstash.logback.marker.Markers.append;
 public record IngredientSelectionBotProcessor(StringCacheService cacheService,
                                               SimpleKeyboardProvider keyboardProvider) implements BaseBotProcessor {
 
+    private static final String INGREDIENTS_BUCKET_LIST = "\n ▫ ";
+
     @Override
     public Mono<EditMessageText> process(Data data) {
         String userId = data.getUserId();
@@ -32,8 +35,9 @@ public record IngredientSelectionBotProcessor(StringCacheService cacheService,
                         .builder()
                         .chatId(data.getChatId())
                         .messageId(data.getMessageId())
-                        .text("Выбранные ингредиенты: " + tuple2.getT1())
+                        .text("<u>Выбранные ингредиенты:</u>" + compileIngredientsText(tuple2.getT1()))
                         .replyMarkup(tuple2.getT2())
+                        .parseMode("HTML")
                         .build()
                 );
     }
@@ -50,6 +54,12 @@ public record IngredientSelectionBotProcessor(StringCacheService cacheService,
             log.trace(append("user_id", userId), "Getting ingredients from cache");
         }
         return cacheService.getIngredients(userId);
+    }
+
+    private String compileIngredientsText(List<String> ingredients) {
+        return ingredients.stream()
+                .map(ingredient -> "<i>" + ingredient + "</i>")
+                .collect(Collectors.joining(INGREDIENTS_BUCKET_LIST, INGREDIENTS_BUCKET_LIST, ""));
     }
 
     @Override
