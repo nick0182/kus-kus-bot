@@ -7,6 +7,7 @@ import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.service.util.ReceiptKeyboardProvider;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
+import com.shaidulin.kuskusbot.util.Emoji;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import reactor.core.publisher.Mono;
@@ -22,14 +23,6 @@ import static net.logstash.logback.marker.Markers.append;
 @Slf4j
 public record ReceiptNutritionOverviewPageBotProcessor(StringCacheService cacheService,
                                                        ReceiptKeyboardProvider keyboardProvider) implements BaseBotProcessor {
-
-    private static final String PROTEIN_EMOJI = "\uD83E\uDD69";
-
-    private static final String FAT_EMOJI = "\uD83E\uDDC8";
-
-    private static final String CARBOHYDRATE_EMOJI = "\uD83C\uDF5E";
-
-    private static final String CALORIES_EMOJI = "\uD83D\uDCAA";
 
     @Override
     public Mono<EditMessageCaption> process(Data data) {
@@ -54,10 +47,10 @@ public record ReceiptNutritionOverviewPageBotProcessor(StringCacheService cacheS
     private String createNutritionOverviewCaption(List<Nutrition> nutritionOverview) {
         return nutritionOverview.stream().map(nutrition -> {
             String portionHeader = "<u><b>" + nutrition.name().getEmoji() + " " + nutrition.name().getName() + ":</b></u>";
-            String proteinLine = "<i>" + PROTEIN_EMOJI + " Белки " + nutrition.protein() + " г</i>";
-            String fatLine = "<i>" + FAT_EMOJI + " Жиры " + nutrition.fat() + " г</i>";
-            String carbohydrateLine = "<i>" + CARBOHYDRATE_EMOJI + " Углеводы " + nutrition.carbohydrate() + " г</i>";
-            String caloriesLine = "<i>" + CALORIES_EMOJI + " Калорийность " + nutrition.calories() + " ккал</i>";
+            String proteinLine = "<i>" + Emoji.PROTEIN + " Белки " + nutrition.protein() + " г</i>";
+            String fatLine = "<i>" + Emoji.FAT + " Жиры " + nutrition.fat() + " г</i>";
+            String carbohydrateLine = "<i>" + Emoji.CARBOHYDRATE + " Углеводы " + nutrition.carbohydrate() + " г</i>";
+            String caloriesLine = "<i>" + Emoji.CALORIES + " Калорийность " + nutrition.calories() + " ккал</i>";
             return String.join("\n", portionHeader, proteinLine, fatLine, carbohydrateLine, caloriesLine) + "\n\n";
         }).collect(Collectors.joining());
     }

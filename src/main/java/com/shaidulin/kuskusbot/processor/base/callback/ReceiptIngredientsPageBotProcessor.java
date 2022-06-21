@@ -8,11 +8,13 @@ import com.shaidulin.kuskusbot.service.cache.StringCacheService;
 import com.shaidulin.kuskusbot.service.util.ReceiptKeyboardProvider;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
+import com.shaidulin.kuskusbot.util.Emoji;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static net.logstash.logback.marker.Markers.append;
@@ -38,6 +40,7 @@ public record ReceiptIngredientsPageBotProcessor(StringCacheService cacheService
                         .messageId(data.getMessageId())
                         .caption(createIngredientsCaption(tuple2.getT1().ingredients()))
                         .replyMarkup(tuple2.getT2())
+                        .parseMode("HTML")
                         .build());
     }
 
@@ -58,11 +61,15 @@ public record ReceiptIngredientsPageBotProcessor(StringCacheService cacheService
     }
 
     private String createIngredientsCaption(List<Ingredient> ingredients) {
-        return ingredients.stream().map(ingredient -> {
-            String quantity = ingredient.quantity() != null ? String.valueOf(ingredient.quantity()) : "";
-            String measurement = ingredient.measurement() != null ? ingredient.measurement() : "";
-            return ingredient.name() + " - " + quantity + " " + measurement + "\n";
-        }).collect(Collectors.joining());
+        return ingredients.stream()
+                .map(this::createIngredientText)
+                .collect(Collectors.joining("</i>\n", "", "</i>"));
+    }
+
+    private String createIngredientText(Ingredient ingredient) {
+        return Optional.ofNullable(ingredient.quantity())
+                .map(qTY -> Emoji.INGREDIENT_LINE + " <i>" + ingredient.name() + " - " + qTY + " " + ingredient.measurement())
+                .orElse(Emoji.INGREDIENT_LINE + " <i>" + ingredient.name());
     }
 
     @Override

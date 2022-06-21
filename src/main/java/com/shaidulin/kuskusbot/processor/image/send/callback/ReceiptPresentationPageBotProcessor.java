@@ -7,6 +7,7 @@ import com.shaidulin.kuskusbot.processor.image.send.ImageSendBotProcessor;
 import com.shaidulin.kuskusbot.service.api.ImageService;
 import com.shaidulin.kuskusbot.service.api.ReceiptService;
 import com.shaidulin.kuskusbot.service.cache.StringCacheService;
+import com.shaidulin.kuskusbot.service.util.MediaMessageProvider;
 import com.shaidulin.kuskusbot.service.util.ReceiptPageKeyboardProvider;
 import com.shaidulin.kuskusbot.update.Data;
 import com.shaidulin.kuskusbot.update.Router;
@@ -81,7 +82,7 @@ public record ReceiptPresentationPageBotProcessor(StringCacheService cacheServic
         return SendPhoto.builder()
                 .chatId(chatId)
                 .photo(photo)
-                .caption(imageService.createPhotoCaption(receiptPresentation))
+                .caption(MediaMessageProvider.createPhotoCaption(receiptPresentation))
                 .replyMarkup(keyboard)
                 .build();
     }
