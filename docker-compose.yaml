@@ -50,7 +50,7 @@ services:
       - kus-kus-network
 
   kus-kus-bot:
-    image: blink182u2/kus-kus-bot:0.0.7
+    image: blink182u2/kus-kus-bot:0.0.8
     networks:
       - kus-kus-network
     environment:
