@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kus-kus-bot
+spec:
+  selector:
+    matchLabels:
+      app: kus-kus-bot
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kus-kus-bot
+    spec:
+      containers:
+        - name: kus-kus-bot
+          image: blink182u2/kus-kus-bot:0.0.8
+          env:
+            - name: BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secret
+                  key: token
+            - name: BOT_USERNAME
+              value: KusKusReceiptBot
+            - name: BOT_RECEIPT_PAGE_SIZE
+              value: '10'
+            - name: SPRING_REDIS_HOST
+              value: kus-kus-cache.fpv6ft.0001.mes1.cache.amazonaws.com
+            - name: API_RECEIPT_URL
+              value: http://kus-kus
+            - name: API_IMAGE_URL
+              value: http://kus-kus-images
+            - name: LOGGING_LEVEL_COM_SHAIDULIN_KUSKUSBOT
+              value: TRACE
+          resources:
+            requests:
+              cpu: 100m
+              memory: 300Mi
+            limits:
+              cpu: 300m
+              memory: 500Mi
+
