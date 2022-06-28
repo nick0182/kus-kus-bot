@@ -73,7 +73,7 @@ services:
         tag: kus-kus
 
   kus-kus:
-    image: blink182u2/kus-kus:0.0.1
+    image: 848500148350.dkr.ecr.me-south-1.amazonaws.com/kus-kus:0.0.1
     networks:
       - kus-kus-network
     environment:
@@ -84,7 +84,7 @@ services:
     restart: on-failure
 
   kus-kus-images:
-    image: blink182u2/kus-kus-images:0.0.1-SNAPSHOT
+    image: 848500148350.dkr.ecr.me-south-1.amazonaws.com/kus-kus-images:0.0.1
     networks:
       - kus-kus-network
     environment:
