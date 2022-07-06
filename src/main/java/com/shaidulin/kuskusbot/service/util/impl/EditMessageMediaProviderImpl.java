@@ -36,7 +36,7 @@ public record EditMessageMediaProviderImpl(StringCacheService cacheService, Imag
     private EditMessageMedia compileMessage(String cachedImage, byte[] imageBytes, Data data,
                                             String caption, String name, InlineKeyboardMarkup keyboard) {
         boolean isNewMedia = Objects.isNull(cachedImage);
-        String userId = data.getUserId();
+        long userId = data.getUserId();
 
         InputMedia photo = new InputMediaPhoto();
         photo.setCaption(caption);

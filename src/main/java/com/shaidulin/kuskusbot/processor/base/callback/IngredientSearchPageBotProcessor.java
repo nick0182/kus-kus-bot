@@ -23,7 +23,7 @@ public record IngredientSearchPageBotProcessor(StringCacheService cacheService) 
 
     @Override
     public Mono<EditMessageText> process(Data data) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         return getIngredientsFromCache(userId)
                 .filter(ingredients -> !ingredients.isEmpty())
                 .map(ingredients -> compileMessage(userId, data.getChatId(), data.getMessageId(),
@@ -32,7 +32,7 @@ public record IngredientSearchPageBotProcessor(StringCacheService cacheService) 
                         "Напиши ингредиент для поиска"));
     }
 
-    private Mono<List<String>> getIngredientsFromCache(String userId) {
+    private Mono<List<String>> getIngredientsFromCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Getting ingredients from cache");
         }
@@ -41,7 +41,7 @@ public record IngredientSearchPageBotProcessor(StringCacheService cacheService) 
                 .flatMap(ignored -> cacheService.getIngredients(userId));
     }
 
-    private EditMessageText compileMessage(String userId, String chatId, Integer messageId, String text) {
+    private EditMessageText compileMessage(long userId, String chatId, Integer messageId, String text) {
         EditMessageText message = EditMessageText
                 .builder()
                 .chatId(chatId)

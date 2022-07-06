@@ -6,7 +6,7 @@ import lombok.*;
 @Value
 @Builder
 public class Data {
-    String userId;
+    long userId;
     String firstName;
     String lastName;
     String chatId;

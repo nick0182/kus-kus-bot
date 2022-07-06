@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: kus-kus-bot
-          image: 848500148350.dkr.ecr.me-south-1.amazonaws.com/kus-kus-bot:0.0.8
+          image: 848500148350.dkr.ecr.me-south-1.amazonaws.com/kus-kus-bot:0.0.9
           env:
             - name: BOT_TOKEN
               valueFrom:

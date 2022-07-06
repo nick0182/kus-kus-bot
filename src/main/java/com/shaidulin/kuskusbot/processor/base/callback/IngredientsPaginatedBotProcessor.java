@@ -24,7 +24,7 @@ public record IngredientsPaginatedBotProcessor(StringCacheService cacheService,
     @Override
     public Mono<EditMessageReplyMarkup> process(Data data) {
         int page = data.getSession().getCurrentIngredientsPage();
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         return getIngredientSuggestionsFromCache(userId)
                 .flatMap(ingredients -> keyboardProvider.compileKeyboard(userId, page, ingredients))
                 .map(ingredientsKeyboard -> EditMessageReplyMarkup
@@ -35,7 +35,7 @@ public record IngredientsPaginatedBotProcessor(StringCacheService cacheService,
                         .build());
     }
 
-    private Mono<TreeSet<IngredientValue>> getIngredientSuggestionsFromCache(String userId) {
+    private Mono<TreeSet<IngredientValue>> getIngredientSuggestionsFromCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Getting ingredient suggestions from cache");
         }

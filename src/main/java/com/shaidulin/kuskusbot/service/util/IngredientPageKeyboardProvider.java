@@ -7,5 +7,5 @@ import reactor.core.publisher.Mono;
 import java.util.TreeSet;
 
 public interface IngredientPageKeyboardProvider {
-    Mono<InlineKeyboardMarkup> compileKeyboard(String userId, int page, TreeSet<IngredientValue> ingredients);
+    Mono<InlineKeyboardMarkup> compileKeyboard(long userId, int page, TreeSet<IngredientValue> ingredients);
 }

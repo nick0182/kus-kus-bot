@@ -27,7 +27,7 @@ public record IngredientSelectionBotProcessor(StringCacheService cacheService,
 
     @Override
     public Mono<EditMessageText> process(Data data) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         return storeIngredientInCache(userId, data.getSession().getIngredientName())
                 .flatMap(ignored -> getIngredientsFromCache(userId))
                 .zipWith(keyboardProvider.compileKeyboard(userId))
@@ -42,14 +42,14 @@ public record IngredientSelectionBotProcessor(StringCacheService cacheService,
                 );
     }
 
-    private Mono<String> storeIngredientInCache(String userId, String ingredient) {
+    private Mono<String> storeIngredientInCache(long userId, String ingredient) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Storing ingredient in cache: {}", ingredient);
         }
         return cacheService.storeIngredient(userId, ingredient);
     }
 
-    private Mono<List<String>> getIngredientsFromCache(String userId) {
+    private Mono<List<String>> getIngredientsFromCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Getting ingredients from cache");
         }

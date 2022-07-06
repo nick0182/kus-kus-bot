@@ -29,7 +29,7 @@ public record ReceiptIngredientsPageBotProcessor(StringCacheService cacheService
     @Override
     public Mono<EditMessageCaption> process(Data data) {
         int receiptId = data.getSession().getReceiptId();
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         return getReceiptFromCache(userId)
                 .filter(receiptValue -> receiptValue.queryParam() == receiptId)
                 .switchIfEmpty(updateReceiptInCache(receiptId, userId))
@@ -44,14 +44,14 @@ public record ReceiptIngredientsPageBotProcessor(StringCacheService cacheService
                         .build());
     }
 
-    private Mono<ReceiptValue> getReceiptFromCache(String userId) {
+    private Mono<ReceiptValue> getReceiptFromCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Getting receipt from cache");
         }
         return cacheService.getReceipt(userId);
     }
 
-    private Mono<ReceiptValue> updateReceiptInCache(int receiptId, String userId) {
+    private Mono<ReceiptValue> updateReceiptInCache(int receiptId, long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "No receipt found in cache. Updating cache with receipt id: {}", receiptId);
         }

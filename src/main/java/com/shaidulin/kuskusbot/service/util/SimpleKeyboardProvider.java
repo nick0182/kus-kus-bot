@@ -4,5 +4,5 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import reactor.core.publisher.Mono;
 
 public interface SimpleKeyboardProvider {
-    Mono<InlineKeyboardMarkup> compileKeyboard(String userId);
+    Mono<InlineKeyboardMarkup> compileKeyboard(long userId);
 }

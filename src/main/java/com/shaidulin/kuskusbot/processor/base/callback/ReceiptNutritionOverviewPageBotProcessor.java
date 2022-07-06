@@ -37,7 +37,7 @@ public record ReceiptNutritionOverviewPageBotProcessor(StringCacheService cacheS
                         .build());
     }
 
-    private Mono<ReceiptValue> getReceiptFromCache(String userId) {
+    private Mono<ReceiptValue> getReceiptFromCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Getting receipt from cache");
         }

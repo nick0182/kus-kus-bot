@@ -16,7 +16,7 @@ public record RouterMapper(StringCacheService stringCacheService) {
         if (update.hasMessage()) {
             Message message = update.getMessage();
             User from = message.getFrom();
-            String userId = from.getId().toString();
+            long userId = from.getId();
             if (message.isCommand() && message.getText().equals("/start")) {
                 return Mono.just(new Router(BASE, HOME_PAGE, constructDataFromMessage(message)));
             }
@@ -28,7 +28,7 @@ public record RouterMapper(StringCacheService stringCacheService) {
         }
         if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
-            String userId = callbackQuery.getFrom().getId().toString();
+            long userId = callbackQuery.getFrom().getId();
             String sessionId = callbackQuery.getData();
             return stringCacheService
                     .checkPermission(userId, Permission.CALLBACK)
@@ -42,7 +42,7 @@ public record RouterMapper(StringCacheService stringCacheService) {
     private Data constructDataFromMessage(Message message) {
         User from = message.getFrom();
         return Data.builder()
-                .userId(from.getId().toString())
+                .userId(from.getId())
                 .firstName(from.getFirstName())
                 .lastName(from.getLastName())
                 .chatId(message.getChatId().toString())
@@ -54,7 +54,7 @@ public record RouterMapper(StringCacheService stringCacheService) {
     private Data constructDataFromCallback(CallbackQuery query, Data.Session session) {
         User from = query.getFrom();
         return Data.builder()
-                .userId(from.getId().toString())
+                .userId(from.getId())
                 .firstName(from.getFirstName())
                 .lastName(from.getLastName())
                 .chatId(query.getMessage().getChatId().toString())

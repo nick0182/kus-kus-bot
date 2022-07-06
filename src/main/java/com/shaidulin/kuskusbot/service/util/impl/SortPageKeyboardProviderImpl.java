@@ -23,7 +23,7 @@ public class SortPageKeyboardProviderImpl extends KeyboardProvider implements Si
     }
 
     @Override
-    public Mono<InlineKeyboardMarkup> compileKeyboard(String userId) {
+    public Mono<InlineKeyboardMarkup> compileKeyboard(long userId) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
         int buttonIndex = 0;
         Map<Integer, Data.Session> sessionHash = new HashMap<>();

@@ -27,13 +27,13 @@ public record HomePageBotProcessor(StringCacheService cacheService,
 
     @Override
     public Mono<? extends BotApiMethod<?>> process(Data data) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         return prepareCache(userId)
                 .flatMap(ignored -> keyboardProvider.compileKeyboard(userId))
                 .map(keyboardMarkup -> compileMessage(keyboardMarkup, data));
     }
 
-    private Mono<String> prepareCache(String userId) {
+    private Mono<String> prepareCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Initializing cache");
         }

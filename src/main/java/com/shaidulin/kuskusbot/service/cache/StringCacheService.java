@@ -15,37 +15,37 @@ import java.util.TreeSet;
 
 public interface StringCacheService {
 
-    Mono<Boolean> checkPermission(String userId, Permission permission);
+    Mono<Boolean> checkPermission(long userId, Permission permission);
 
-    Mono<String> prepareUserCache(String userId);
+    Mono<String> prepareUserCache(long userId);
 
-    Mono<String> startSearch(String userId);
+    Mono<String> startSearch(long userId);
 
-    Mono<Boolean> storeIngredientSuggestions(String userId, TreeSet<IngredientValue> ingredients);
+    Mono<Boolean> storeIngredientSuggestions(long userId, TreeSet<IngredientValue> ingredients);
 
-    Mono<String> storeIngredient(String userId, String ingredient);
+    Mono<String> storeIngredient(long userId, String ingredient);
 
-    Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId);
+    Mono<TreeSet<IngredientValue>> getIngredientSuggestions(long userId);
 
-    Mono<List<String>> getIngredients(String userId);
+    Mono<List<String>> getIngredients(long userId);
 
     Mono<String> getImage(String id);
 
     Mono<String> storeImage(String id, String telegramFileId);
 
-    Mono<Boolean> storeReceiptPresentations(String userId, ReceiptPresentationMatch match);
+    Mono<Boolean> storeReceiptPresentations(long userId, ReceiptPresentationMatch match);
 
-    Mono<ReceiptPresentationValue> getReceiptPresentation(String userId, int index);
+    Mono<ReceiptPresentationValue> getReceiptPresentation(long userId, int index);
 
-    Mono<Integer> getReceiptPresentationsSize(String userId);
+    Mono<Integer> getReceiptPresentationsSize(long userId);
 
-    Mono<Meta> getReceiptPresentationsMeta(String userId);
+    Mono<Meta> getReceiptPresentationsMeta(long userId);
 
-    Mono<Boolean> storeReceipt(String userId, ReceiptValue receipt);
+    Mono<Boolean> storeReceipt(long userId, ReceiptValue receipt);
 
-    Mono<ReceiptValue> getReceipt(String userId);
+    Mono<ReceiptValue> getReceipt(long userId);
 
-    Mono<Long> storeSession(String userId, Map<Integer, Data.Session> sessionHash);
+    Mono<Long> storeSession(long userId, Map<Integer, Data.Session> sessionHash);
 
-    Mono<Data.Session> getSession(String userId, String sessionId);
+    Mono<Data.Session> getSession(long userId, String sessionId);
 }

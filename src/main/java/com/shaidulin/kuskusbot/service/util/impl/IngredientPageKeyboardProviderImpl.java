@@ -27,7 +27,7 @@ public class IngredientPageKeyboardProviderImpl extends KeyboardProvider impleme
     }
 
     @Override
-    public Mono<InlineKeyboardMarkup> compileKeyboard(String userId, int page, TreeSet<IngredientValue> ingredients) {
+    public Mono<InlineKeyboardMarkup> compileKeyboard(long userId, int page, TreeSet<IngredientValue> ingredients) {
         List<List<InlineKeyboardButton>> buttons = new ArrayList<>();
         Map<Integer, Data.Session> sessionHash = new HashMap<>();
         int shownCount = page * INGREDIENTS_PAGE_SIZE;

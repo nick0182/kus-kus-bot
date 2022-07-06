@@ -34,7 +34,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
 
     @Override
     public Mono<EditMessageMedia> process(Data data) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         int page = data.getSession().getCurrentReceiptPage();
         return getReceiptPresentationsMetaFromCache(userId)
                 .flatMap(meta -> {
@@ -50,7 +50,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
                 });
     }
 
-    private Mono<Meta> getReceiptPresentationsMetaFromCache(String userId) {
+    private Mono<Meta> getReceiptPresentationsMetaFromCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Getting receipt presentations meta from cache");
         }
@@ -58,7 +58,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
     }
 
     private Mono<EditMessageMedia> previousBatchFlow(Data data, SortType sortType) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Previous batch flow");
         }
@@ -70,7 +70,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
     }
 
     private Mono<EditMessageMedia> nextBatchFlow(Data data, SortType sortType) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Next batch flow");
         }
@@ -82,7 +82,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
     }
 
     private Mono<EditMessageMedia> currentBatchFlow(Data data, boolean hasMore) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Current batch flow");
         }
@@ -107,7 +107,7 @@ public record ReceiptPresentationPaginatedBotProcessor(StringCacheService cacheS
                 .flatMap(tuple2 -> provideMessage(tuple2.getT1(), data, tuple2.getT2()));
     }
 
-    private Mono<List<ReceiptPresentationValue>> getReceiptsAndStoreInCache(String userId, Page page, SortType sortType) {
+    private Mono<List<ReceiptPresentationValue>> getReceiptsAndStoreInCache(long userId, Page page, SortType sortType) {
         return cacheService
                 .getIngredients(userId)
                 .flatMap(ingredients -> receiptService

@@ -50,7 +50,7 @@ services:
       - kus-kus-network
 
   kus-kus-bot:
-    image: 848500148350.dkr.ecr.me-south-1.amazonaws.com/kus-kus-bot:0.0.8
+    image: 848500148350.dkr.ecr.me-south-1.amazonaws.com/kus-kus-bot:0.0.9
     networks:
       - kus-kus-network
     environment:

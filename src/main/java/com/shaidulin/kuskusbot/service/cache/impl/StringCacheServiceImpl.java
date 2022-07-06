@@ -25,7 +25,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
                                      ObjectMapper objectMapper) implements StringCacheService {
 
     @Override
-    public Mono<Boolean> checkPermission(String userId, Permission permission) {
+    public Mono<Boolean> checkPermission(long userId, Permission permission) {
         return redisReactiveCommands
                 .get(composeKey(userId, "permissions"))
                 .map(String::toCharArray)
@@ -34,7 +34,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<String> prepareUserCache(String userId) {
+    public Mono<String> prepareUserCache(long userId) {
         String[] keysToDelete = new String[]{
                 composeKey(userId, "permissions"),
                 composeKey(userId, "suggestions"),
@@ -51,12 +51,12 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<String> startSearch(String userId) {
+    public Mono<String> startSearch(long userId) {
         return modifyPermission(userId, "10").filter(response -> response.equals("OK"));
     }
 
     @Override
-    public Mono<Boolean> storeIngredientSuggestions(String userId, TreeSet<IngredientValue> ingredients) {
+    public Mono<Boolean> storeIngredientSuggestions(long userId, TreeSet<IngredientValue> ingredients) {
         String ingredientSuggestionsKey = composeKey(userId, "suggestions");
         return redisReactiveCommands
                 .del(ingredientSuggestionsKey)
@@ -72,7 +72,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<String> storeIngredient(String userId, String ingredient) {
+    public Mono<String> storeIngredient(long userId, String ingredient) {
         return redisReactiveCommands
                 .rpush(composeKey(userId, "ingredients"), ingredient)
                 .flatMap(ignored -> modifyPermission(userId, "01"))
@@ -80,7 +80,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<TreeSet<IngredientValue>> getIngredientSuggestions(String userId) {
+    public Mono<TreeSet<IngredientValue>> getIngredientSuggestions(long userId) {
         return redisReactiveCommands
                 .zrevrangeWithScores(composeKey(userId, "suggestions"), 0, -1)
                 .collect(
@@ -90,7 +90,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<List<String>> getIngredients(String userId) {
+    public Mono<List<String>> getIngredients(long userId) {
         return redisReactiveCommands
                 .lrange(composeKey(userId, "ingredients"), 0, -1)
                 .collectList();
@@ -107,7 +107,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<Boolean> storeReceiptPresentations(String userId, ReceiptPresentationMatch match) {
+    public Mono<Boolean> storeReceiptPresentations(long userId, ReceiptPresentationMatch match) {
         String receiptPresentationsKey = composeReceiptPresentationsKey(userId);
         return redisReactiveCommands
                 .del(receiptPresentationsKey)
@@ -122,40 +122,40 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<ReceiptPresentationValue> getReceiptPresentation(String userId, int index) {
+    public Mono<ReceiptPresentationValue> getReceiptPresentation(long userId, int index) {
         return redisReactiveCommands
                 .lindex(composeReceiptPresentationsKey(userId), index)
                 .map(cacheString -> deserializeFromCache(cacheString, ReceiptPresentationValue.class));
     }
 
     @Override
-    public Mono<Integer> getReceiptPresentationsSize(String userId) {
+    public Mono<Integer> getReceiptPresentationsSize(long userId) {
         return redisReactiveCommands.llen(composeReceiptPresentationsKey(userId)).map(Long::intValue);
     }
 
     @Override
-    public Mono<Meta> getReceiptPresentationsMeta(String userId) {
+    public Mono<Meta> getReceiptPresentationsMeta(long userId) {
         return redisReactiveCommands
                 .get(composeReceiptPresentationsMetaKey(userId))
                 .map(cacheString -> deserializeFromCache(cacheString, Meta.class));
     }
 
     @Override
-    public Mono<Boolean> storeReceipt(String userId, ReceiptValue receipt) {
+    public Mono<Boolean> storeReceipt(long userId, ReceiptValue receipt) {
         return redisReactiveCommands
                 .set(composeKey(userId, "receipt"), serializeToCache(receipt))
                 .map(response -> response.equals("OK"));
     }
 
     @Override
-    public Mono<ReceiptValue> getReceipt(String userId) {
+    public Mono<ReceiptValue> getReceipt(long userId) {
         return redisReactiveCommands
                 .get(composeKey(userId, "receipt"))
                 .map(cacheString -> deserializeFromCache(cacheString, ReceiptValue.class));
     }
 
     @Override
-    public Mono<Long> storeSession(String userId, Map<Integer, Data.Session> sessionHash) {
+    public Mono<Long> storeSession(long userId, Map<Integer, Data.Session> sessionHash) {
         log.debug("Setting new session with hash count: {}", sessionHash.size());
         return redisReactiveCommands
                 .hset(
@@ -170,7 +170,7 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
     }
 
     @Override
-    public Mono<Data.Session> getSession(String userId, String sessionId) {
+    public Mono<Data.Session> getSession(long userId, String sessionId) {
         String sessionKey = composeKey(userId, "session");
         return redisReactiveCommands
                 .hget(sessionKey, sessionId)
@@ -187,20 +187,20 @@ public record StringCacheServiceImpl(RedisReactiveCommands<String, String> redis
         return objectMapper.readValue(cacheString, clazz);
     }
 
-    private Mono<String> modifyPermission(String userId, String permissionString) {
+    private Mono<String> modifyPermission(long userId, String permissionString) {
         return redisReactiveCommands.set(composeKey(userId, "permissions"), permissionString);
     }
 
-    private String composeKey(String userId, String suffix) {
-        return String.join(":", userId, suffix);
+    private String composeKey(long userId, String suffix) {
+        return String.join(":", String.valueOf(userId), suffix);
     }
 
-    private String composeReceiptPresentationsKey(String userId) {
-        return String.join(":", userId, "receipts", "presentations");
+    private String composeReceiptPresentationsKey(long userId) {
+        return String.join(":", String.valueOf(userId), "receipts", "presentations");
     }
 
-    private String composeReceiptPresentationsMetaKey(String userId) {
-        return String.join(":", userId, "receipts", "presentations", "meta");
+    private String composeReceiptPresentationsMetaKey(long userId) {
+        return String.join(":", String.valueOf(userId), "receipts", "presentations", "meta");
     }
 
     private String composeImageKey(String id) {

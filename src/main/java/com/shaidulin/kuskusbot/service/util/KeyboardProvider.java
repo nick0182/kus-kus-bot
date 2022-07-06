@@ -16,7 +16,7 @@ public abstract class KeyboardProvider {
 
     private final StringCacheService cacheService;
 
-    protected Mono<Long> storeSession(String userId, Map<Integer, Data.Session> sessionHash) {
+    protected Mono<Long> storeSession(long userId, Map<Integer, Data.Session> sessionHash) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Storing session: {}", sessionHash);
         }

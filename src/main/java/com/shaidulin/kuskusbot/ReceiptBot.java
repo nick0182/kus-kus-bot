@@ -66,7 +66,7 @@ public abstract class ReceiptBot extends TelegramLongPollingBot {
 
     private void logUpdate(Update update) {
         if (log.isTraceEnabled()) {
-            Long userId;
+            long userId;
             if (update.hasMessage()) {
                 userId = update.getMessage().getFrom().getId();
             } else {

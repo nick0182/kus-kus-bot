@@ -27,7 +27,7 @@ public record IngredientsPageBotProcessor(StringCacheService cacheService, Recei
 
     @Override
     public Mono<SendMessage> process(Data data) {
-        String userId = data.getUserId();
+        long userId = data.getUserId();
         String chatId = data.getChatId();
         return getIngredientsFromCache(userId)
                 .flatMap(known -> receiptService.suggestIngredients(data.getInput(), known))
@@ -50,7 +50,7 @@ public record IngredientsPageBotProcessor(StringCacheService cacheService, Recei
                 );
     }
 
-    private Mono<List<String>> getIngredientsFromCache(String userId) {
+    private Mono<List<String>> getIngredientsFromCache(long userId) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Getting ingredients from cache");
         }
@@ -59,7 +59,7 @@ public record IngredientsPageBotProcessor(StringCacheService cacheService, Recei
                 .flatMap(ignored -> cacheService.getIngredients(userId));
     }
 
-    private TreeSet<IngredientValue> unwrapIngredients(String userId, IngredientMatch ingredientMatch) {
+    private TreeSet<IngredientValue> unwrapIngredients(long userId, IngredientMatch ingredientMatch) {
         if (ingredientMatch.ingredients().isEmpty()) {
             if (log.isTraceEnabled()) {
                 log.trace(append("user_id", userId), "No ingredients found");
@@ -70,7 +70,7 @@ public record IngredientsPageBotProcessor(StringCacheService cacheService, Recei
         }
     }
 
-    private Mono<Boolean> storeIngredientsInCache(String userId, TreeSet<IngredientValue> ingredients) {
+    private Mono<Boolean> storeIngredientsInCache(long userId, TreeSet<IngredientValue> ingredients) {
         if (log.isTraceEnabled()) {
             log.trace(append("user_id", userId), "Storing ingredients in cache. Ingredients: {}", ingredients);
         }
